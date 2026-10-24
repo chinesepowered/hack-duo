@@ -99,6 +99,11 @@ async function card(scene) {
   console.log(`recorded ${scene}.mp4`);
 }
 
+function sandbox(mode) {  // Code Mode needs the Daytona sandbox; keep it off otherwise to save credits
+  execFileSync(path.join(__dirname, '..', '.venv', 'bin', 'python'), ['-m', 'scripts.setup_trueforge', '--only', 'agents'],
+               { cwd: path.join(__dirname, '..'), env: { ...process.env, CAPY_SANDBOX: mode, CAPY_SKILL: 'off' }, stdio: 'ignore' });
+}
+
 const SCENES = {
   s01_title: () => card('s01_title'),
   s02_problem: () => card('s02_problem'),
@@ -113,6 +118,16 @@ const SCENES = {
     await ask(L, st.sid1, "Hi Capy! Code review can't keep up with all the AI-generated pull requests on my team. Who here already solved that?");
     await sleep(6000);
   }),
+  s04b_plan: () => withPages('s04b_plan', async (L, R) => {
+    const st = load();
+    sandbox('on');
+    try {
+      await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
+      await sleep(2500);
+      await ask(L, st.sid1, 'Plan my Wednesday so I can catch Franck, David and Sameen. Use the sandbox to pull their sessions, sort by time and flag any clashes.');
+      await sleep(6000);
+    } finally { sandbox('off'); }
+  }),
   s06_lookup: () => withPages('s06_lookup', async (L, R) => {
     const st = load();
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
@@ -124,7 +139,7 @@ const SCENES = {
     const st = load();
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
     await sleep(2000);
-    await ask(L, st.sid1, 'Remember that I met Franck Nijhof after his Home Assistant session. We swapped notes on PR review load, and I promised to send him our numbers.');
+    await ask(L, st.sid1, 'Remember that I met Franck Nijhof after his Home Assistant session. We swapped notes on PR review load, and I promised to send him our numbers: agent PRs tripled since June, and our median review wait is 2.5 days.');
     await sleep(2500);
     st.sid2 = await newSession(); save(st);
     await L.goto(`${TF}/sessions/${st.sid2}`);
@@ -138,6 +153,11 @@ const SCENES = {
     await sleep(2000);
     const status = await ask(L, st.sid2, 'Please draft a short follow-up to Franck and send it.');
     console.log('turn status before approval:', status);
+    const gated = await L.getByRole('button', { name: /^(Allow|Approve)$/i }).last().isVisible().catch(() => false);
+    if (!gated) {  // Capy showed the draft and asked first; say yes like a user would
+      await sleep(2500);
+      await ask(L, st.sid2, 'Looks great, send it.');
+    }
     await approve(L, st.sid2);
     await sleep(3000);
   }),

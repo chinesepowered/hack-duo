@@ -90,7 +90,6 @@ def load(path: str):
 
 async def _indexes():
     rag = G.rag()
-    await rag.graph_store.ensure_indices() if hasattr(rag.graph_store, "ensure_indices") else None
     try:
         await rag.finalize()  # recreates vector + fulltext indexes; nothing left to dedup
     except Exception as e:  # noqa: BLE001

@@ -20,6 +20,11 @@
   "text": "In a few seconds, the graph walks from Maya's problem, to similar problems, to the speakers who solved them, to where they'll be. Every hop is a real edge. And every claim has a receipt: the speaker's own words, and when Bright Data fetched them."
  },
  {
+  "id": "s04b_plan",
+  "kind": "app",
+  "text": "Maya wants to catch all three. Capy spins up a TrueForge sandbox, writes a quick script that pulls everyone's sessions through the graph tools, and hands back a clash-free plan."
+ },
+ {
   "id": "s05_data",
   "kind": "card",
   "text": "None of this data was easy to get. The session catalog is a JavaScript app, so Bright Data's Browser API rendered it. Bright Data's search and LinkedIn scrapers matched each speaker to their profile and recent posts. Then FalkorDB's GraphRAG SDK, running on OpenAI, turned it all into a graph of who solved what."

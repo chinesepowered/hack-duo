@@ -51,7 +51,7 @@ def _chunks(ids: list[str]) -> list[dict]:
              "collector": r[5], "fetched_at": r[6], "date_posted": r[7]} for r in rows]
 
 
-def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = True) -> dict:
+def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = True, publish_view: bool = True) -> dict:
     """Rank speakers by how well their talks/posts show they solved one of your problems."""
     t0 = time.time()
     if problem:
@@ -116,7 +116,8 @@ def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = 
     view = {"kind": "matches", "query": problem or "Maya's problems", "generated_at": _now(),
             "took_ms": int((time.time() - t0) * 1000), "people": out,
             "graph": build_path(out[:3])}
-    publish(view)
+    if publish_view:
+        publish(view)
     return view
 
 
@@ -246,7 +247,7 @@ def build_path(people: list[dict]) -> dict:
 
 def common_ground(name: str) -> dict:
     """What links a (possibly just-looked-up) person to the user's problems, with the path for the UI."""
-    view = find_people(None, limit=60, exclude_met=False)
+    view = find_people(None, limit=60, exclude_met=False, publish_view=False)
     person = next((p for p in view["people"] if p["name"].lower() == name.lower()), None)
     if person:
         publish({**view, "kind": "lookup", "focus": person["id"], "people": [person], "graph": build_path([person])})
@@ -269,7 +270,8 @@ def remember_meeting(name: str, notes: str, where: str = "") -> dict:
     G.q("""MATCH (me:Me) MERGE (p:__Entity__:Person {id: $pid}) ON CREATE SET p.name = $name
            MERGE (me)-[m:MET]->(p) SET m.notes = $notes, m.where = $where, m.at = $at, m.follow_up = 'pending'""",
         pid=pid, name=name, notes=notes, where=where, at=_now())
-    view = {"kind": "memory", "generated_at": _now(), "event": f"Remembered meeting {name}", **recall_me(publish_view=False)}
+    view = {"kind": "memory", "generated_at": _now(), "event": f"Remembered meeting {name}",
+            **recall_me(publish_view=False), "graph": memory_graph()}
     publish(view)
     return {"ok": True, "remembered": name, "notes": notes, "where": where}
 
@@ -291,8 +293,23 @@ def recall_me(publish_view: bool = True) -> dict:
         "MATCH (:Me)-[i:INTRO]->(p) RETURN p.name, i.status, i.at ORDER BY i.at DESC")]
     out = {"me": me[0][0] if me else None, "problems": problems, "met": met, "shortlist": shortlist, "intros": intros}
     if publish_view:
-        publish({"kind": "memory", "generated_at": _now(), **out})
+        publish({"kind": "memory", "generated_at": _now(), **out, "graph": memory_graph()})
     return out
+
+
+def memory_graph() -> dict:
+    nodes, links = {}, []
+    for me_id, me_name, pid, pname, notes, tid, ttitle in G.ro(
+            """MATCH (me:Me)-[m:MET]->(p) OPTIONAL MATCH (p)-[:PRESENTS]->(t:Talk)
+               RETURN me.id, me.name, p.id, p.name, m.notes, t.id, t.title"""):
+        nodes.setdefault(me_id, {"id": me_id, "label": "Me", "name": me_name})
+        nodes.setdefault(pid, {"id": pid, "label": "Speaker", "name": pname})
+        if not any(l["target"] == pid for l in links):
+            links.append({"source": me_id, "target": pid, "rel": "MET"})
+        if tid and tid not in nodes:
+            nodes[tid] = {"id": tid, "label": "Talk", "name": ttitle}
+            links.append({"source": pid, "target": tid, "rel": "PRESENTS"})
+    return {"nodes": list(nodes.values()), "links": [dict(l, id=i) for i, l in enumerate(links)]}
 
 
 def record_intro(name: str, message: str, status: str) -> dict:

@@ -156,7 +156,7 @@
     return `<div class="card ${i === 0 ? "top" : ""}">
       <div class="row">${av}<div class="who"><div class="n">${esc(p.name)}</div><div class="t">${esc(p.title)} · ${esc(p.company)}</div></div><div class="yuzu">${yz}</div></div>
       <div class="why">${esc(p.why)}</div>
-      ${t ? `<span class="catch">🗓 ${esc(t.day.replace(/day,/, ","))} ${esc(t.time.replace(/ PDT$/, ""))} · ${esc(t.location)}</span>` : ""}
+      ${t ? `<span class="catch">🗓 ${esc(t.day.replace(/^(\w{3})\w*,/, "$1,"))} ${esc(t.time.replace(/ PDT$/, ""))} · ${esc(t.location)}</span>` : ""}
       ${rec}</div>`;
   }
 
@@ -171,7 +171,7 @@
         id: i + 1, relationship: l.rel, color: l.rel.startsWith("SIMILAR") ? "#F5C518" : "#B9A48E",
         source: idx.get(l.source), target: idx.get(l.target), visible: true, data: {} })),
     });
-    setTimeout(() => canvas.zoomToFit && canvas.zoomToFit(1.15), 900);
+    for (const ms of [700, 1600, 2600]) setTimeout(() => canvas.zoomToFit && canvas.zoomToFit(1.2), ms);
   }
 
   function toast(html) {
@@ -190,6 +190,7 @@
       const met = (v.met || []).map((m) => `<li><b>${esc(m.name)}</b> — ${esc(m.notes)} <span class="src">${esc(m.where || "")} · follow-up: ${esc(m.follow_up)}</span></li>`).join("");
       $("cards").innerHTML = `<div class="card mem"><div class="why"><b>${esc(v.me)}</b> is working on:</div><ul>${(v.problems || []).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
         <div class="why"><b>Met so far</b></div><ul>${met || "<li>nobody yet</li>"}</ul></div>`;
+      if (v.graph && v.graph.nodes && v.graph.nodes.length) drawGraph(v.graph);
       if (v.event) toast(`🧠 <b>Remembered</b> — ${esc(v.event)}`);
     } else if (v.kind === "sent") {
       toast(`✉️ <b>Sent to ${esc(v.to)}</b> after your approval · demo outbox<br>${esc(v.message).slice(0, 220)}`);

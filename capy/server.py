@@ -62,7 +62,7 @@ def find_my_people(problem: str = "", limit: int = 5) -> dict:
 def why_meet(name: str) -> dict:
     """Explain, with receipts, why the user should meet this speaker: the graph path from the user's
     problem to what this person built/solved/practices, plus the exact source quotes."""
-    view = M.find_people(None, limit=40, exclude_met=False)
+    view = M.find_people(None, limit=40, exclude_met=False, publish_view=False)
     person = next((p for p in view["people"] if p["name"].lower() == name.lower()), None)
     if not person:
         return {"name": name, "found": False, "hint": "Not linked to the user's problems yet; try lookup_person."}
@@ -114,8 +114,11 @@ def intro_context(name: str) -> dict:
     """Common ground between the user and a person, for writing a short, specific intro or follow-up."""
     rec = M.recall_me(publish_view=False)
     met = next((m for m in rec["met"] if m["name"].lower() == name.lower()), None)
-    view = M.find_people(None, limit=40, exclude_met=False)
+    view = M.find_people(None, limit=40, exclude_met=False, publish_view=False)
     person = next((p for p in view["people"] if p["name"].lower() == name.lower()), None)
+    if person:  # show what the draft is grounded in
+        M.publish({**view, "kind": "why", "query": f"follow-up to {name}", "focus": person["id"], "people": [person],
+                   "graph": M.build_path([person])})
     return {"to": name, "user": rec["me"], "user_problems": rec["problems"], "met_notes": met,
             "their_relevant_work": person["receipts"][:2] if person else [], "why": person["why"] if person else None}
 

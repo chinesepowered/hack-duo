@@ -16,7 +16,7 @@ CLIPS, AUDIO, BUILD = ROOT / "out" / "clips", ROOT / "out" / "audio", ROOT / "ou
 FINAL = ROOT / "out" / "capy-pals-demo.mp4"
 TIMELINE = [  # clip, narrations played over it
     ("s01_title", ["s01_title"]), ("s02_problem", ["s02_problem"]), ("s03_ask", ["s03_ask", "s04_path"]),
-    ("s05_data", ["s05_data"]), ("s06_lookup", ["s06_lookup"]), ("s07_memory", ["s07_memory"]),
+    ("s04b_plan", ["s04b_plan"]), ("s05_data", ["s05_data"]), ("s06_lookup", ["s06_lookup"]), ("s07_memory", ["s07_memory"]),
     ("s08_approve", ["s08_approve"]), ("s09_hood", ["s09_hood"]), ("s10_outro", ["s10_outro"]),
 ]
 GAP, LEAD = 0.45, 0.35
@@ -112,8 +112,8 @@ def main():
     if captions:
         srt = BUILD / "captions.srt"
         srt.write_text("".join(f"{k + 1}\n{srt_time(a)} --> {srt_time(b)}\n{c}\n\n" for k, (a, b, c) in enumerate(all_caps)))
-        style = ("FontName=DejaVu Sans,FontSize=17,PrimaryColour=&H00FFFFFF,OutlineColour=&H00201A14,BackColour=&H99201A14,"
-                 "BorderStyle=4,Outline=1,Shadow=0,MarginV=18,Alignment=2")
+        style = ("FontName=DejaVu Sans,FontSize=12,PrimaryColour=&H00FFFFFF,OutlineColour=&H00201A14,BackColour=&H99201A14,"
+                 "BorderStyle=4,Outline=1,Shadow=0,MarginV=10,Alignment=2")
         run("-i", str(joined), "-vf", f"subtitles={srt}:force_style='{style}'", "-c:v", "libx264", "-crf", "20",
             "-preset", "medium", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(FINAL))
     else:
