@@ -14,7 +14,7 @@ Capy Pals 🦫 — meet the people at the conference who already solved your pro
 https://github.com/chinesepowered/hack-duo
 
 **Demo video** (public or unlisted)
-_paste the YouTube (unlisted) / Loom / Drive link_. The file is also in the repo: https://github.com/chinesepowered/hack-duo/blob/main/demo/capy-pals-demo.mp4
+https://www.youtube.com/watch?v=atJuB9y89O8
 
 **Live demo or deployment** (optional)
 Runs live on stage (TrueForge + our capy-graph MCP server on FalkorDB Cloud). Anyone can run it with `./start.sh`; see the README.
