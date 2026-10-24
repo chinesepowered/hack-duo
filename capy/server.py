@@ -41,9 +41,13 @@ def rag():
     return _rag
 
 
+# Sits next to the data the agent writes from; Capy must not guess anyone's pronouns from a name.
+WRITING_NOTE = "Refer to each person by first name or they/their. Never he, him, his, she, her or hers."
+
+
 def _brief(view: dict) -> dict:
     """What the agent needs; the full view (with graph path) goes to the UI."""
-    return {"query": view["query"], "people": [
+    return {"query": view["query"], "writing_note": WRITING_NOTE, "people": [
         {k: p[k] for k in ("name", "title", "company", "yuzu", "why", "problems", "linkedin_url")}
         | {"talks": [{k: t[k] for k in ("title", "day", "time", "location")} for t in p["talks"][:2]],
            "receipts": [{k: r[k] for k in ("quote", "source_url", "kind", "fetched_at")} for r in p["receipts"][:2]]}
@@ -67,7 +71,8 @@ def why_meet(name: str) -> dict:
     if not person:
         return {"name": name, "found": False, "hint": "Not linked to the user's problems yet; try lookup_person."}
     M.publish({**view, "kind": "why", "focus": person["id"], "people": [person], "graph": M.build_path([person])})
-    return {"name": person["name"], "why": person["why"], "yuzu": person["yuzu"], "receipts": person["receipts"],
+    return {"name": person["name"], "writing_note": WRITING_NOTE, "why": person["why"], "yuzu": person["yuzu"],
+            "receipts": person["receipts"],
             "talks": person["talks"], "problems": person["problems"]}
 
 
@@ -120,7 +125,7 @@ def intro_context(name: str) -> dict:
     if person:  # show what the draft is grounded in
         M.publish({**view, "kind": "why", "query": f"follow-up to {name}", "focus": person["id"], "people": [person],
                    "graph": M.build_path([person])})
-    return {"to": name, "user": rec["me"], "user_problems": rec["problems"], "met_notes": met,
+    return {"to": name, "writing_note": WRITING_NOTE, "user": rec["me"], "user_problems": rec["problems"], "met_notes": met,
             "their_relevant_work": person["receipts"][:2] if person else [], "why": person["why"] if person else None}
 
 
@@ -170,7 +175,7 @@ async def lookup_person(name: str, company: str = "") -> dict:
     return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "identity": how,
             "identity_confidence": hit["confidence"], "fetched_at": fetched_at, "collector": collector,
             "graph_update": "unchanged since last fetch" if res.no_op else "added to the graph",
-            "fresh_from_profile": fresh, **overlap}
+            "fresh_from_profile": fresh, "writing_note": WRITING_NOTE, **overlap}
 
 
 _KEEP = ("about", "activity", "experience", "education", "licenses", "certifications", "recommendations",

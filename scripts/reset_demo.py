@@ -1,5 +1,5 @@
 """Reset Capy to a clean demo start: forget meetings, intros and the shortlist, and remove live lookups
-(they are re-fetched fresh on stage). The built graph — talks, speakers, posts — is untouched.
+(the next lookup fetches them fresh). The built graph (talks, speakers, posts) is untouched.
 
   python -m scripts.reset_demo
 """

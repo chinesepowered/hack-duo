@@ -2,8 +2,9 @@
 
 Knowledge layer (GraphRAG SDK): Document -> Chunk <- MENTIONED_IN - Entity, entities linked by
 RELATES {rel_type, fact, source_chunk_ids}. Capy's layer adds Talk nodes, PRESENTS edges, speaker
-profile properties, and memory (MET / WANTS_TO_MEET / INTRO edges) — all in the same graph.
+profile properties, and memory (MET / WANTS_TO_MEET / INTRO edges), all in the same graph.
 """
+import logging
 from functools import lru_cache
 
 from falkordb import FalkorDB
@@ -11,6 +12,19 @@ from graphrag_sdk import ConnectionConfig, Entity, GraphRAG, LiteLLM, LiteLLMEmb
 from graphrag_sdk.ingestion.extraction_strategies.entity_extractors import compute_entity_id
 
 from capy.config import settings
+
+
+
+class _IndexExists(logging.Filter):
+    """GraphRAG's ensure_indices re-sends CREATE INDEX on every ingest. FalkorDB answers "already indexed", the
+    SDK's connection layer logs that as an ERROR, and its index layer then counts it as success. Drop that noise."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "already indexed" not in msg and "already exists" not in msg
+
+
+logging.getLogger("graphrag_sdk.core.connection").addFilter(_IndexExists())
 
 EMBED_DIM = 256
 ME = compute_entity_id("Maya Chen", "Person")  # the demo persona
@@ -75,7 +89,7 @@ def rag() -> GraphRAG:
                                     username=settings.falkordb_username, password=settings.falkordb_password,
                                     ssl=settings.falkordb_tls, graph_name=settings.graph_name,
                                     query_timeout_ms=60000),
-        # gpt-6-luna only takes temperature=0 with reasoning off — which also makes extraction fast and cheap
+        # gpt-6-luna only takes temperature=0 with reasoning off, which also makes extraction fast and cheap
         llm=LiteLLM(model=f"openai/{settings.openai_model}", api_key=settings.openai_api_key,
                     temperature=0.0, reasoning_effort="none"),
         embedder=LiteLLMEmbedder(model=f"openai/{settings.embedding_model}", api_key=settings.openai_api_key,

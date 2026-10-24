@@ -155,7 +155,7 @@ Every hop is a real edge, and every claim cites the chunk it came from (quote, s
 | **Approvals** | `send_intro` is in `require_approval_for_tools`: TrueForge shows the exact message and waits for **Allow / Deny** ([video 1:48](https://www.youtube.com/watch?v=atJuB9y89O8&t=108s)) |
 | **Sandbox + Code Mode** (Daytona) | Capy writes Python that calls `where_to_find` for each speaker through the MCP client inside the sandbox, sorts the sessions and checks clashes ([video 0:55](https://www.youtube.com/watch?v=atJuB9y89O8&t=55s)) |
 | **Skills** | [`capy-intro`](skills/capy-intro/SKILL.md), a receipt-grounded intro playbook, imported from this repo |
-| **Schedules** | `capy-morning-followups` runs `capy-followup` daily at 8:00 PT; **Run now** triggers it on stage |
+| **Schedules** | `capy-morning-followups` runs `capy-followup` daily at 8:00 PT; **Run now** triggers it on demand |
 | **Generative UI** | The picks render as cards in the chat |
 
 <table><tr>
@@ -179,7 +179,7 @@ cp .env.example .env    # OpenAI, Bright Data and Daytona keys; FalkorDB Cloud h
 ```
 - TrueForge chat: http://localhost:8790 (Agents → capy) · Capy panel: http://localhost:8001 (side-by-side: `/?side`)
 - The scraped graph isn't committed. Rebuild it with `python -m scripts.fetch_catalog && python -m scripts.research_speakers && python -m scripts.build_graph`, or load an export with `python -m scripts.graph_io load <file>`.
-- Before a live demo: `python -m scripts.reset_demo` clears rehearsal meetings, intros and live lookups. Stage script: [`SUBMISSION.md`](SUBMISSION.md).
+- To start fresh: `python -m scripts.reset_demo` clears meetings, intros and live lookups (the built graph stays).
 - Can't reach FalkorDB Cloud? Set `FALKORDB_TLS=true`, or `FALKORDB_HOST=localhost` to run FalkorDB locally.
 
 | Path | What's there |

@@ -1,14 +1,14 @@
-# Capy Pals — submission answers
+# Capy Pals: submission answers
 
 Copy-paste sheet for the Patch the Conference submission form, in the form's order.
 Video timestamps refer to `capy-pals-demo.mp4` (2:32).
 
 ---
 
-## Part 1 — Project details
+## Part 1: Project details
 
 **Project title**
-Capy Pals 🦫 — meet the people at the conference who already solved your problem
+Capy Pals 🦫: meet the people at the conference who already solved your problem
 
 **Repository**
 https://github.com/chinesepowered/hack-duo
@@ -16,8 +16,8 @@ https://github.com/chinesepowered/hack-duo
 **Demo video** (public or unlisted)
 https://www.youtube.com/watch?v=atJuB9y89O8
 
-**Live demo or deployment** (optional)
-Runs live on stage (TrueForge + our capy-graph MCP server on FalkorDB Cloud). Anyone can run it with `./start.sh`; see the README.
+**Live demo or deployment** (optional, fine to leave blank)
+Not publicly hosted, since it needs API keys. It runs locally with `./start.sh` against our FalkorDB Cloud graph; see the README.
 
 **Track(s)**
 FalkorDB · Bright Data · TrueFoundry (TrueForge) with OpenAI
@@ -34,12 +34,12 @@ Capy Pals is a capybara agent for attendees (capybaras are famously friends with
 
 ---
 
-## Part 2 — Track details
+## Part 2: Track details
 
 **How did you use FalkorDB and what problems did you solve using it?**
 FalkorDB is the product, not storage.
 - Multi-hop + vector in one graph: the user's problem → vector index over entity embeddings → similar Problem/Practice/Tool nodes (materialised as SIMILAR_TO edges with their score) → the Speaker who SOLVED / BUILT / PRACTICES it, or 2 hops via ADDRESSES → PRESENTS → Talk (day, time, room). A chunk-vector path (Chunk → Document ← AUTHORED ← Speaker) backs it up. The GraphRAG SDK built it from 365 documents: 2,393 entities and 1,911 facts, with the provenance chain Document → Chunk ← MENTIONED_IN ← Entity.
-- Explainable: every answer returns its graph path, and the Capy panel renders it with @falkordb/canvas (video 0:27–0:55). Example: Maya → FACES → "code review cannot keep up with AI-generated pull requests" → SIMILAR_TO (0.57) → "custom code review agent" ← ADDRESSES ← "enforcing team-specific standards in code review" ← PRACTICES ← David Pereira → PRESENTS → "What Copilot code review catches (and how to build a custom agent for the rest)". Every hop is a real edge; every claim cites the chunk it came from.
+- Explainable: every answer returns its graph path, and the Capy panel renders it with @falkordb/canvas (video 0:27 to 0:55). Example: Maya → FACES → "code review cannot keep up with AI-generated pull requests" → SIMILAR_TO (0.57) → "custom code review agent" ← ADDRESSES ← "enforcing team-specific standards in code review" ← PRACTICES ← David Pereira → PRESENTS → "What Copilot code review catches (and how to build a custom agent for the rest)". Every hop is a real edge; every claim cites the chunk it came from.
 - Memory: (:Me)-[:MET {notes, where, follow_up}]->(:Person), plus WANTS_TO_MEET and INTRO. A brand-new session still knows who you met and who is waiting on a follow-up (video 1:39).
 - Shared state between agents: the chat agent writes MET edges; a separate scheduled agent (capy-followup, daily at 8 AM) reads them, drafts the follow-ups, and flips follow_up to "sent" after approval.
 - Live updates: a fresh lookup is ingested incrementally with GraphRAG `update` (a no-op when the content hash is unchanged) and cleaned up with `delete_document`.
@@ -54,7 +54,7 @@ Capy only works because of data a basic script can't reach.
 
 **How did you use TrueFoundry and OpenAI and what problems did you solve using it?**
 - Built on TrueForge: everything (model provider, MCP servers, Daytona sandbox, skill, agents, schedule) is configured through TrueForge's REST API by one idempotent script (scripts/setup_trueforge.py), so a fresh `npx @truefoundry/trueforge` ends up identical.
-  - Agents: `capy` (chat) and `capy-followup` (daily 8 AM schedule; "Run now" on stage).
+  - Agents: `capy` (chat) and `capy-followup` (daily 8 AM schedule, plus "Run now" for on-demand runs).
   - MCP tools: our capy-graph server plus the Bright Data remote MCP, discovered on demand (deferred tool loading).
   - Approvals: `send_intro` is in require_approval_for_tools, so TrueForge shows the exact message and waits for Allow / Deny before anything reaches a person (video 1:48).
   - Sandbox / Code Mode: Capy writes Python in a Daytona sandbox that calls `where_to_find` for each speaker through the MCP client, sorts the sessions and checks for clashes (video 0:55).
@@ -67,7 +67,7 @@ N/A (we're not entering the Qodo track)
 
 ---
 
-## Part 3 — Feedback (optional)
+## Part 3: Feedback (optional)
 
 **FalkorDB: what we liked, what we'd improve**
 Liked: the GraphRAG SDK's incremental `update` and `delete_document` (crash-safe, content-hash no-op) made live lookups clean; vector search and graph traversal in one Cypher query; @falkordb/canvas dropped straight into our UI for the lit path.
@@ -80,17 +80,3 @@ Improve: `search_engine_batch` over MCP returned 502s and hung under load (we mo
 **TrueFoundry: what we liked, what we'd improve**
 Liked: every piece is configurable over REST, so our whole setup is one script; per-tool approvals that show the exact payload; Code Mode calling MCP tools from the sandbox; schedules with "Run now".
 Improve: MCP servers on localhost are blocked until you set OUTBOUND_URL_ALLOWED_HOSTS, which is easy to miss in a local setup; skills register without checking that the repo is reachable; agents sometimes ask "should I send this?" before a tool that is already approval-gated (double confirmation); a few turns stalled for minutes with no error until cancelled; field naming varies across endpoints (`agent_name` vs `agentName`); tools without an outputSchema make Code Mode inspect a sample response first.
-
----
-
-## Stage demo script (~4 min)
-
-Open the TrueForge chat (left) and the Capy panel `localhost:8001/?side` (right). Run `python -m scripts.reset_demo` first.
-1. *"Hi Capy! Code review can't keep up with all the AI-generated pull requests on my team. Who here already solved that?"* → the lit path + receipts (source + fetched-at).
-2. *"Plan my two days so I can catch all three. Write a quick sandbox script that pulls their sessions through the graph tools, sorts them by time and flags any clashes."* → open Agent steps → the Code Mode script.
-3. *"I just bumped into Andy Kelly from Precisely at the badge party! Look Andy up fresh. What do we have in common?"* → live Bright Data fetch (~45–60 s); the first receipt comes from the fresh profile.
-4. *"Remember that I met David Pereira after the Copilot code review session. We swapped notes on PR review load, and I promised to send over our numbers: agent PRs tripled since June, and our median review wait is 2.5 days."*
-5. **Schedules → capy-morning-followups → Run now** → open the new capy-followup session: a second agent read the meeting from FalkorDB and drafted the follow-up → **Allow** → "Sent" toast in the Capy panel (demo outbox). If Capy also logged Andy in step 3, you'll get a draft for each.
-   (Shorter alternative: New Chat → *"Good morning Capy! ☕ Who am I waiting to follow up with?"* → *"Please draft a short follow-up to David and send it."* → **Allow**.)
-
-If the venue Wi-Fi fails, play the video.

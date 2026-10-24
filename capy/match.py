@@ -227,7 +227,7 @@ def _why(h: dict, name: str) -> str:
     rel = {"SOLVED": "solved", "BUILT": "built", "PRACTICES": "practices", "ADDRESSES": "works on",
            "USES": "uses", "FACES": "is also wrestling with", "TALKS_ABOUT": "talks about"}.get(h["rel"], "works on")
     target = h["via"]["name"] if h.get("via") else (h["concept"] or "this")
-    return f'{name} {rel} "{target}" — close to your problem "{h["problem"]}" (similarity {h["similarity"]:.2f})'
+    return f'{name} {rel} "{target}", close to your problem "{h["problem"]}" (similarity {h["similarity"]:.2f})'
 
 
 def _snippet(text: str, around: str | None, width: int = 320) -> str:

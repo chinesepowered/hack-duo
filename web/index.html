@@ -72,7 +72,7 @@
   <img src="/assets/capy.svg" alt="">
   <div class="brand">
     <h1>Capy Pals</h1>
-    <p>Capy is friends with everyone. It finds the people here who already solved your problem — with receipts.</p>
+    <p>Capy is friends with everyone. It finds the people here who already solved your problem, with receipts.</p>
   </div>
   <div class="chips">
     <span class="chip">📍 GitHub Universe 2026</span>
@@ -183,15 +183,15 @@
     if (v.kind === "matches" || v.kind === "why" || v.kind === "lookup") {
       $("lefttitle").innerHTML = `🦫 <b>${v.kind === "lookup" ? "Fresh lookup" : v.kind === "why" ? "Why meet" : "Capy's picks"}</b>
         <span style="font-weight:500">for: ${esc(v.query)}</span><span class="meta">${v.took_ms ? v.took_ms + " ms · FalkorDB" : ""}</span>`;
-      $("cards").innerHTML = v.people.map(card).join("") || `<div id="empty"><p>No one yet — try another problem.</p></div>`;
+      $("cards").innerHTML = v.people.map(card).join("") || `<div id="empty"><p>No one yet. Try another problem.</p></div>`;
       drawGraph(v.graph);
     } else if (v.kind === "memory") {
       $("lefttitle").innerHTML = `🧠 <b>Capy remembers</b><span class="meta">stored in the graph · survives sessions</span>`;
-      const met = (v.met || []).map((m) => `<li><b>${esc(m.name)}</b> — ${esc(m.notes)} <span class="src">${esc(m.where || "")} · follow-up: ${esc(m.follow_up)}</span></li>`).join("");
+      const met = (v.met || []).map((m) => `<li><b>${esc(m.name)}</b>: ${esc(m.notes)} <span class="src">${esc(m.where || "")} · follow-up: ${esc(m.follow_up)}</span></li>`).join("");
       $("cards").innerHTML = `<div class="card mem"><div class="why"><b>${esc(v.me)}</b> is working on:</div><ul>${(v.problems || []).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
         <div class="why"><b>Met so far</b></div><ul>${met || "<li>nobody yet</li>"}</ul></div>`;
       if (v.graph && v.graph.nodes && v.graph.nodes.length) drawGraph(v.graph);
-      if (v.event) toast(`🧠 <b>Remembered</b> — ${esc(v.event)}`);
+      if (v.event) toast(`🧠 <b>${esc(v.event)}</b>`);
     } else if (v.kind === "sent") {
       toast(`✉️ <b>Sent to ${esc(v.to)}</b> after your approval · demo outbox<br>${esc(v.message).slice(0, 220)}`);
     }

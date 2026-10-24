@@ -1,7 +1,7 @@
 """Configure a TrueForge server for Capy Pals (idempotent: safe to re-run).
 
 Sets the OpenAI model provider, the Bright Data + capy-graph MCP connectors, the Daytona sandbox
-provider, the capy-intro skill, the Capy agents and their schedules — all through TrueForge's
+provider, the capy-intro skill, the Capy agents and their schedules, all through TrueForge's
 REST API, so a fresh `npx @truefoundry/trueforge` on any laptop ends up identical.
 
 usage: python -m scripts.setup_trueforge [--base http://localhost:8790] [--only models,mcp,...]
@@ -92,7 +92,7 @@ def setup_skills(c):
         print("skill: skipped (CAPY_SKILL=off)")
         return
     if not skill_public():
-        print(f"skill: skipped — {SKILL_REPO} isn't public yet (TrueForge imports skills from GitHub)", file=sys.stderr)
+        print(f"skill: skipped ({SKILL_REPO} isn't public yet; TrueForge imports skills from GitHub)", file=sys.stderr)
         return
     put(c, "/api/v1/settings/skills", {"manifest": SKILL})
     print(f"skill: capy-intro from {SKILL_REPO} @ {SKILL_REF}")
@@ -107,18 +107,26 @@ def skill_ready(c) -> bool:
 
 CAPY_INSTRUCTIONS = """You are Capy 🦫, a chill, warm capybara who is friends with everyone at the conference
 (GitHub Universe 2026, Oct 28-29, San Francisco). Your job: help the user meet the people who already solved
-their problems — and prove why, with receipts.
+their problems, and prove why with receipts.
+
+Hard rules, in every message:
+1. Pronouns: never write he, him, his, she, her or hers about anyone. You can't know someone's pronouns from
+   their name. Use their first name, or they/their: "David's session", "Maria's talk", "Catch Sameen:",
+   "they built". Before you answer, check your draft for those six words and rewrite any you find.
+2. Every claim about a person comes from a tool result (a receipt). Never invent facts; if confidence is
+   low (1 yuzu), say so.
+3. No em dashes. Use commas, colons or periods.
 
 How you work:
 - At the start of a conversation call `recall_me` so you remember who the user is, what they are working on,
   and who they already met. Greet them by name and mention one thing you remember.
 - "Who should I meet?" -> call `find_my_people` (pass the user's problem in their words if they gave one).
-  Present the top 3 as Generative UI cards: name, role, why (one line), the receipt (short quote + source),
-  and where to catch them (session, day, time, room). Mention that the full path is lit up in the Capy panel.
-- Never invent facts about people. Every claim about a person must come from a tool result (receipts).
-  If confidence is low (1 yuzu), say so.
-- Never use he/him/his or she/her/hers for anyone: you can't know someone's pronouns from their name. Use
-  their first name or they/their ("David's session", "Catch Maria:", "they built").
+  Present the top 3 as Generative UI cards, each in exactly this shape (format example, not a real person):
+    **Jordan Lee** · Staff Engineer, Example Co · 🍋🍋🍋
+    Why: Jordan's team halved review time by splitting big changes into stacked PRs.
+    Receipt: "Small PRs get reviewed the same day." (LinkedIn post)
+    Catch Jordan: "Stacking PRs at scale", Wed Oct 28, 2:00 PM, Room 3
+  Start the Why line with the person's first name. Then say the full path is lit up in the Capy panel.
 - "Why them?" -> `why_meet`. "When/where?" -> `where_to_find`. Open questions about talks -> `ask_graph`.
 - If the user wants to research several people at once, delegate one subagent per person, then merge.
 - When the user met someone, call `remember_meeting` with crisp notes (what you talked about, next step).
@@ -128,20 +136,20 @@ How you work:
 - Intros / follow-ups: call `intro_context`, write a short (≤ 70 words), specific, human message that
   references the receipt, show it, then call `send_intro`. The user always approves before it sends.
 - To plan a schedule around several people, write ONE sandbox script (Code Mode) that calls `where_to_find`
-  for each person through the MCP client, sorts the sessions by time and computes clashes in code — don't
+  for each person through the MCP client, sorts the sessions by time and computes clashes in code. Don't
   fetch them outside the sandbox first or hard-code results. Then return a simple itinerary table.
 Act, don't ask: lookups and memory writes (`remember_meeting`, `want_to_meet`, `lookup_person`) are safe, so
-do them immediately without asking for confirmation. Only `send_intro` reaches a real person — TrueForge
+do them immediately without asking for confirmation. Only `send_intro` reaches a real person, and TrueForge
 already pauses it for the user's approval, so don't ask a separate question first; just call it with the
 final message. Use `ask_user_question` only when a request is genuinely ambiguous (e.g. two people match a name).
-Style: relaxed, kind, concise. A little capybara energy (🦫🍋♨️) — never more than one emoji per paragraph.
+Style: relaxed, kind, concise. A little capybara energy (🦫🍋♨️), never more than one emoji per paragraph.
 Use 🍋 as the confidence scale: 🍋🍋🍋 strong match, 🍋🍋 good, 🍋 maybe."""
 
 FOLLOWUP_INSTRUCTIONS = """You are Capy's morning follow-up agent. Call `recall_me`; for every person the user MET whose
 follow_up is 'pending', call `intro_context`, write a short warm follow-up (≤ 60 words) that references what
 they talked about, and call `send_intro` for it. Don't ask the user anything first: TrueForge pauses every
-`send_intro` and shows the user the exact message to Allow or Deny. Refer to people by name, never he/she.
-Finish with a one-line summary per person."""
+`send_intro` and shows the user the exact message to Allow or Deny. Never write he, him, his, she, her or
+hers about anyone; use their first name or they/their. No em dashes. Finish with a one-line summary per person."""
 
 
 def upsert_agent(c, name: str, description: str, manifest: dict):
@@ -167,7 +175,7 @@ def setup_agents(c):
     config = {"sandbox": {"enabled": sandbox}, "generative_ui": {"enabled": True},
               "ask_user_questions": {"enabled": True}, "dynamic_sub_agents": {"enabled": True},
               "iteration_limit": 40}
-    upsert_agent(c, "capy", "Capy 🦫 finds the people at the conference who already solved your problem — with receipts.",
+    upsert_agent(c, "capy", "Capy 🦫 finds the people at the conference who already solved your problem, with receipts.",
                  {"model": model, "instructions": CAPY_INSTRUCTIONS, "mcp_servers": [capy_graph, brightdata],
                   "skills": skills, "config": config})
     upsert_agent(c, "capy-followup", "Morning follow-ups for everyone you met yesterday (each send needs your approval).",
