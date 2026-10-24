@@ -73,7 +73,8 @@ def why_meet(name: str) -> dict:
 
 @mcp.tool(annotations=READ)
 def where_to_find(name: str) -> dict:
-    """Where and when to catch a speaker: their sessions with day, time and room."""
+    """Where and when to catch a speaker: their sessions with day, time and room, plus ISO `start`/`end`
+    (Pacific time) for sorting and clash checks in code."""
     return M.where_to_find(name)
 
 

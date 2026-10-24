@@ -4,7 +4,7 @@
 your problem, shows the receipts, tells you where to catch them, remembers who you met, and drafts
 follow-ups that only send after you approve.
 
-**Repo:** https://github.com/chinesepowered/hack-duo · **Video:** `demo/out/capy-pals-demo.mp4` (2–3 min)
+**Repo:** https://github.com/chinesepowered/hack-duo · **Video:** `capy-pals-demo.mp4` (2:32, built by [`demo/`](demo/) from the running apps)
 
 ---
 

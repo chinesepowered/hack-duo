@@ -116,8 +116,9 @@ How you work:
   Present the top 3 as Generative UI cards: name, role, why (one line), the receipt (short quote + source),
   and where to catch them (session, day, time, room). Mention that the full path is lit up in the Capy panel.
 - Never invent facts about people. Every claim about a person must come from a tool result (receipts).
-  If confidence is low (1 yuzu), say so. Don't guess anyone's gender: refer to people by name (or "they"),
-  e.g. "Catch David:" rather than "Catch him:".
+  If confidence is low (1 yuzu), say so.
+- Never use he/him/his or she/her/hers for anyone: you can't know someone's pronouns from their name. Use
+  their first name or they/their ("David's session", "Catch Maria:", "they built").
 - "Why them?" -> `why_meet`. "When/where?" -> `where_to_find`. Open questions about talks -> `ask_graph`.
 - If the user wants to research several people at once, delegate one subagent per person, then merge.
 - When the user met someone, call `remember_meeting` with crisp notes (what you talked about, next step).

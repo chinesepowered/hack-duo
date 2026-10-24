@@ -49,6 +49,13 @@ async function ask(L, sid, text) {
   return status;
 }
 
+const GENDERED = /\b(he|him|his|himself|she|her|hers|herself)\b/i;  // Capy shouldn't guess anyone's pronouns
+async function answerText(sid) {  // the agent's final message(s) in the latest turn
+  const ts = await turns(sid);
+  const ev = (await api('GET', `/api/v1/sessions/${sid}/turns/${ts[ts.length - 1].id}/events?page_size=100`)).data || [];
+  return ev.filter((e) => e.type === 'model.message' && !(e.tool_calls || []).length).map((e) => e.content || '').join('\n');
+}
+
 async function approve(L, sid) {
   const before = new Set((await turns(sid)).map((t) => t.id));
   const btn = L.getByRole('button', { name: /^(Allow|Approve)$/i }).last();
@@ -114,7 +121,11 @@ const SCENES = {
   // ask + lit path (narrations s03 + s04 play over this one clip)
   s03_ask: async () => {  // fresh session each attempt, so a hung upstream call can simply be retried
     for (let attempt = 1; attempt <= 3; attempt++) {
-      try { return await SCENES._s03(); } catch (e) { console.log(`s03 attempt ${attempt} failed: ${e.message}`); }
+      try { return await SCENES._s03(); } catch (e) {
+        console.log(`s03 attempt ${attempt} failed: ${e.message}`);
+        const { sid1 } = load();  // drop the rejected session so it doesn't show in the sidebar
+        if (sid1) await api('DELETE', `/api/v1/sessions/${sid1}`).catch(() => {});
+      }
     }
     throw new Error('s03 failed 3 times');
   },
@@ -125,6 +136,8 @@ const SCENES = {
     await ask(L, st.sid1, "Hi Capy! Code review can't keep up with all the AI-generated pull requests on my team. Who here already solved that?");
     const picks = ((await (await fetch(`${CAPY}/api/view`)).json()).people || []).slice(0, 3).map((p) => p.name);
     console.log('s03 picks:', picks.join(', '));  // later scenes meet and follow up with David Pereira
+    const said = (await answerText(st.sid1)).match(GENDERED);
+    if (said) throw new Error(`answer guessed a pronoun ("${said[0]}"), retaking`);
     await sleep(6000);
   }),
   s04b_plan: () => withPages('s04b_plan', async (L, R) => {
