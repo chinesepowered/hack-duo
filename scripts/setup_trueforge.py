@@ -18,7 +18,7 @@ from capy.config import settings
 MODEL = settings.openai_model
 CAPY_MCP_URL = os.getenv("CAPY_MCP_URL", "http://localhost:8001/mcp")
 SKILL_REPO = os.getenv("CAPY_SKILL_REPO", "https://github.com/chinesepowered/hack-duo")
-SKILL_REF = os.getenv("CAPY_SKILL_REF", "claude/inspiring-mccarthy-xs0nw4")
+SKILL_REF = os.getenv("CAPY_SKILL_REF", "main")
 
 
 def put(c: httpx.Client, path: str, body: dict):
