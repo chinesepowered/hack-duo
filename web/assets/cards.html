@@ -13,7 +13,7 @@
   .fade { opacity: 0; transform: translateY(14px); animation: in .7s ease forwards; }
   @keyframes in { to { opacity: 1; transform: none; } }
   @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } }
-  .capy { width: 260px; animation: bob 3.2s ease-in-out infinite; }
+  .capy { width: 260px; animation: in .7s ease forwards, bob 3.2s ease-in-out .7s infinite; }  /* fade in, then bob */
   h1 { font-size: 92px; margin: 10px 0 6px; letter-spacing: -2px; }
   h2 { font-size: 52px; margin: 0 0 18px; letter-spacing: -1px; }
   .sub { font-size: 30px; color: var(--muted); max-width: 1100px; }

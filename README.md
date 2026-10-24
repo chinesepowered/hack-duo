@@ -6,19 +6,19 @@ Patch the Conference Hackathon · built on <b>FalkorDB</b>, <b>Bright Data</b> a
 
 Capy Pals is a capybara agent that turns a conference's sessions and speakers into a knowledge graph of who solved what. Tell Capy your problem and it finds the speakers who already solved it, shows the receipts (their own words, the source, and when it was fetched), and tells you exactly where to catch them. When you bump into someone, Capy looks them up live and finds what you have in common; it remembers everyone you met, and a morning agent drafts follow-ups that only go out after you approve them. We built it for GitHub Universe 2026: 162 sessions, 183 speakers, one graph.
 
-## 🎬 Demo video (2:32)
+## 🎬 Demo video (2:25)
 
-[![Watch the Capy Pals demo on YouTube](https://img.youtube.com/vi/atJuB9y89O8/maxresdefault.jpg)](https://www.youtube.com/watch?v=atJuB9y89O8)
+<a href="https://www.youtube.com/watch?v=2iBrMS7ulGM"><img src="docs/video-thumb.jpg" width="900" alt="Watch the Capy Pals demo on YouTube (2:25)"></a>
 
-**https://www.youtube.com/watch?v=atJuB9y89O8** · every scene is a real recording of the running apps (also in the repo: [`demo/capy-pals-demo.mp4`](demo/capy-pals-demo.mp4)).
+**https://www.youtube.com/watch?v=2iBrMS7ulGM** · every scene is a real recording of the running apps (also in the repo: [`demo/capy-pals-demo.mp4`](demo/capy-pals-demo.mp4)).
 Jump to:
-[0:27 who already solved it](https://www.youtube.com/watch?v=atJuB9y89O8&t=27s) ·
-[0:55 Code Mode plan](https://www.youtube.com/watch?v=atJuB9y89O8&t=55s) ·
-[1:07 the data](https://www.youtube.com/watch?v=atJuB9y89O8&t=67s) ·
-[1:29 live lookup](https://www.youtube.com/watch?v=atJuB9y89O8&t=89s) ·
-[1:39 memory](https://www.youtube.com/watch?v=atJuB9y89O8&t=99s) ·
-[1:48 approval](https://www.youtube.com/watch?v=atJuB9y89O8&t=108s) ·
-[2:05 under the hood](https://www.youtube.com/watch?v=atJuB9y89O8&t=125s)
+[0:26 who already solved it](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=26s) ·
+[0:54 Code Mode plan](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=54s) ·
+[1:05 the data](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=65s) ·
+[1:27 live lookup](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=87s) ·
+[1:36 memory](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=96s) ·
+[1:45 approval](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=105s) ·
+[1:59 under the hood](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=119s)
 
 ## The problem
 
@@ -111,12 +111,12 @@ RETURN p.id, p.name, r1.rel_type, x.name, r2.fact, r1.source_chunk_ids
 
 A chunk-vector path (`Chunk → Document ← AUTHORED ← Speaker`) catches evidence the extraction missed, and the semantic hop is stored as a real `SIMILAR_TO {score}` edge, so the path you see is a path that exists.
 
-**Explainable answers.** Every answer returns its path, and the Capy panel draws it with **@falkordb/canvas** ([video 0:27](https://www.youtube.com/watch?v=atJuB9y89O8&t=27s)). For example:
+**Explainable answers.** Every answer returns its path, and the Capy panel draws it with **@falkordb/canvas** ([video 0:26](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=26s)). For example:
 > Maya → `FACES` → *code review cannot keep up with AI-generated pull requests* → `SIMILAR_TO 0.57` → *custom code review agent* ← `ADDRESSES` ← *enforcing team-specific standards in code review* ← `PRACTICES` ← **David Pereira** → `PRESENTS` → *"What Copilot code review catches (and how to build a custom agent for the rest)"*, Wed Oct 28, 4:05 PM
 
 Every hop is a real edge, and every claim cites the chunk it came from (quote, source URL, fetch time).
 
-**Memory and shared state between agents.** `(:Me)-[:MET {notes, where, at, follow_up}]->(:Person)`, `WANTS_TO_MEET` and `INTRO` edges live in the same graph. A brand-new chat session still knows who Maya met ([video 1:39](https://www.youtube.com/watch?v=atJuB9y89O8&t=99s)). The **chat agent writes** a meeting; the **separate `capy-followup` agent**, on its own schedule, **reads** it, drafts the follow-up, and flips `follow_up` to `sent` once Maya approves.
+**Memory and shared state between agents.** `(:Me)-[:MET {notes, where, at, follow_up}]->(:Person)`, `WANTS_TO_MEET` and `INTRO` edges live in the same graph. A brand-new chat session still knows who Maya met ([video 1:36](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=96s)). The **chat agent writes** a meeting; the **separate `capy-followup` agent**, on its own schedule, **reads** it, drafts the follow-up, and flips `follow_up` to `sent` once Maya approves.
 
 **Live, incremental updates.** A fresh lookup goes in with GraphRAG `update` (a content-hash no-op when nothing changed), so re-lookups replace instead of duplicating; `delete_document` removes a document with its orphaned entities and stale facts ([`scripts/reset_demo.py`](scripts/reset_demo.py)).
 
@@ -152,8 +152,8 @@ Every hop is a real edge, and every claim cites the chunk it came from (quote, s
 |---|---|
 | **Agents** | `capy` (chat) and `capy-followup` (morning follow-ups), both on OpenAI `gpt-6-luna` |
 | **MCP servers** | Our `capy-graph` server (streamable HTTP) and the Bright Data remote MCP, discovered on demand with deferred tool loading |
-| **Approvals** | `send_intro` is in `require_approval_for_tools`: TrueForge shows the exact message and waits for **Allow / Deny** ([video 1:48](https://www.youtube.com/watch?v=atJuB9y89O8&t=108s)) |
-| **Sandbox + Code Mode** (Daytona) | Capy writes Python that calls `where_to_find` for each speaker through the MCP client inside the sandbox, sorts the sessions and checks clashes ([video 0:55](https://www.youtube.com/watch?v=atJuB9y89O8&t=55s)) |
+| **Approvals** | `send_intro` is in `require_approval_for_tools`: TrueForge shows the exact message and waits for **Allow / Deny** ([video 1:45](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=105s)) |
+| **Sandbox + Code Mode** (Daytona) | Capy writes Python that calls `where_to_find` for each speaker through the MCP client inside the sandbox, sorts the sessions and checks clashes ([video 0:54](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=54s)) |
 | **Skills** | [`capy-intro`](skills/capy-intro/SKILL.md), a receipt-grounded intro playbook, imported from this repo |
 | **Schedules** | `capy-morning-followups` runs `capy-followup` daily at 8:00 PT; **Run now** triggers it on demand |
 | **Generative UI** | The picks render as cards in the chat |

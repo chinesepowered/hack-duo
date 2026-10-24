@@ -1,7 +1,7 @@
 # Capy Pals: submission answers
 
 Copy-paste sheet for the Patch the Conference submission form, in the form's order.
-Video timestamps refer to `capy-pals-demo.mp4` (2:32).
+Video timestamps refer to `capy-pals-demo.mp4` (2:25).
 
 ---
 
@@ -14,7 +14,7 @@ Capy Pals 🦫: meet the people at the conference who already solved your proble
 https://github.com/chinesepowered/hack-duo
 
 **Demo video** (public or unlisted)
-https://www.youtube.com/watch?v=atJuB9y89O8
+https://www.youtube.com/watch?v=2iBrMS7ulGM
 
 **Live demo or deployment** (optional, fine to leave blank)
 Not publicly hosted, since it needs API keys. It runs locally with `./start.sh` against our FalkorDB Cloud graph; see the README.
@@ -39,15 +39,15 @@ Capy Pals is a capybara agent for attendees (capybaras are famously friends with
 **How did you use FalkorDB and what problems did you solve using it?**
 FalkorDB is the product, not storage.
 - Multi-hop + vector in one graph: the user's problem → vector index over entity embeddings → similar Problem/Practice/Tool nodes (materialised as SIMILAR_TO edges with their score) → the Speaker who SOLVED / BUILT / PRACTICES it, or 2 hops via ADDRESSES → PRESENTS → Talk (day, time, room). A chunk-vector path (Chunk → Document ← AUTHORED ← Speaker) backs it up. The GraphRAG SDK built it from 365 documents: 2,393 entities and 1,911 facts, with the provenance chain Document → Chunk ← MENTIONED_IN ← Entity.
-- Explainable: every answer returns its graph path, and the Capy panel renders it with @falkordb/canvas (video 0:27 to 0:55). Example: Maya → FACES → "code review cannot keep up with AI-generated pull requests" → SIMILAR_TO (0.57) → "custom code review agent" ← ADDRESSES ← "enforcing team-specific standards in code review" ← PRACTICES ← David Pereira → PRESENTS → "What Copilot code review catches (and how to build a custom agent for the rest)". Every hop is a real edge; every claim cites the chunk it came from.
-- Memory: (:Me)-[:MET {notes, where, follow_up}]->(:Person), plus WANTS_TO_MEET and INTRO. A brand-new session still knows who you met and who is waiting on a follow-up (video 1:39).
+- Explainable: every answer returns its graph path, and the Capy panel renders it with @falkordb/canvas (video 0:26 to 0:54). Example: Maya → FACES → "code review cannot keep up with AI-generated pull requests" → SIMILAR_TO (0.57) → "custom code review agent" ← ADDRESSES ← "enforcing team-specific standards in code review" ← PRACTICES ← David Pereira → PRESENTS → "What Copilot code review catches (and how to build a custom agent for the rest)". Every hop is a real edge; every claim cites the chunk it came from.
+- Memory: (:Me)-[:MET {notes, where, follow_up}]->(:Person), plus WANTS_TO_MEET and INTRO. A brand-new session still knows who you met and who is waiting on a follow-up (video 1:36).
 - Shared state between agents: the chat agent writes MET edges; a separate scheduled agent (capy-followup, daily at 8 AM) reads them, drafts the follow-ups, and flips follow_up to "sent" after approval.
 - Live updates: a fresh lookup is ingested incrementally with GraphRAG `update` (a no-op when the content hash is unchanged) and cleaned up with `delete_document`.
 - Who uses it: attendees looking for peers who already solved their problem; speakers, who get the right people at their sessions; organisers, who could run it as official matchmaking.
 
 **How did you use Bright Data and what problems did you solve using it?**
 Capy only works because of data a basic script can't reach.
-- Hard-to-reach sources: (1) the GitHub Universe session catalog, a RainFocus JavaScript app that returns an empty shell to plain HTTP and paginates behind "Show more", rendered and clicked through with the Browser API (Bright Data MCP browser tools): 162 sessions, 183 speakers; (2) Google SERP via Web Unlocker to resolve each speaker to LinkedIn: 124/183, each with a confidence score (name + company match); (3) the LinkedIn posts Scraper API, one batched job for authored posts since Oct 2025: 227 posts; (4) live at the event, a Web Unlocker fetch of someone's public LinkedIn profile, with the LinkedIn profile Scraper API as fallback (video 1:29).
+- Hard-to-reach sources: (1) the GitHub Universe session catalog, a RainFocus JavaScript app that returns an empty shell to plain HTTP and paginates behind "Show more", rendered and clicked through with the Browser API (Bright Data MCP browser tools): 162 sessions, 183 speakers; (2) Google SERP via Web Unlocker to resolve each speaker to LinkedIn: 124/183, each with a confidence score (name + company match); (3) the LinkedIn posts Scraper API, one batched job for authored posts since Oct 2025: 227 posts; (4) live at the event, a Web Unlocker fetch of someone's public LinkedIn profile, with the LinkedIn profile Scraper API as fallback (video 1:27).
 - Accuracy: every document carries source_url, collector and fetched_at, shown on every receipt ("LinkedIn profile · via Bright Data Web Unlocker · fetched 1:24 PM"). The 59 unresolved speakers keep their catalog data instead of a guessed profile. Live pages keep only the person's own words (About, posts, certifications, recommendations); sign-in chrome and reposts are stripped, turning an 85 KB page into 4.5 KB of signal. A re-lookup replaces the old copy instead of piling up stale duplicates.
 - When a site changes or a request fails: retries with backoff; empty responses are retried; Web Unlocker falls back to the Scraper API; if both fail, Capy says so and answers from what the graph already knows. The catalog parser anchors on stable fields (day and time lines) of the rendered page and keeps the raw text, so a layout change means re-parsing, not re-scraping.
 - Saves time: hours of agenda-reading and profile-stalking become the three people worth meeting, where and when to catch them, a clash-free plan, and a follow-up drafted from their own words.
@@ -56,8 +56,8 @@ Capy only works because of data a basic script can't reach.
 - Built on TrueForge: everything (model provider, MCP servers, Daytona sandbox, skill, agents, schedule) is configured through TrueForge's REST API by one idempotent script (scripts/setup_trueforge.py), so a fresh `npx @truefoundry/trueforge` ends up identical.
   - Agents: `capy` (chat) and `capy-followup` (daily 8 AM schedule, plus "Run now" for on-demand runs).
   - MCP tools: our capy-graph server plus the Bright Data remote MCP, discovered on demand (deferred tool loading).
-  - Approvals: `send_intro` is in require_approval_for_tools, so TrueForge shows the exact message and waits for Allow / Deny before anything reaches a person (video 1:48).
-  - Sandbox / Code Mode: Capy writes Python in a Daytona sandbox that calls `where_to_find` for each speaker through the MCP client, sorts the sessions and checks for clashes (video 0:55).
+  - Approvals: `send_intro` is in require_approval_for_tools, so TrueForge shows the exact message and waits for Allow / Deny before anything reaches a person (video 1:45).
+  - Sandbox / Code Mode: Capy writes Python in a Daytona sandbox that calls `where_to_find` for each speaker through the MCP client, sorts the sessions and checks for clashes (video 0:54).
   - Skill: `capy-intro`, a receipt-grounded intro playbook, imported from our repo. Generative UI cards for the picks; sub-agents enabled.
 - OpenAI does the heavy lifting: gpt-6-luna runs both agents (tool planning, writing the sandbox scripts, drafting follow-ups) and every GraphRAG extraction over the 365 documents; text-embedding-3-small powers the vector search over entities, chunks and the user's problems; gpt-6-luna also reranks evidence relevance, and the embeddings match fresh profile sentences to the user's problems.
 - Who uses it: attendees at any multi-track conference (Universe here), and organisers who want matchmaking that explains itself and never sends anything without consent.

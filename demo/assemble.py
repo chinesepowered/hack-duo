@@ -78,7 +78,7 @@ def build_scene(i: int, clip: str, narr: list[str], script: dict) -> tuple[Path,
         hold = min(hold, target - 0.5, v - 0.5)
         fast_in, fast_out = v - hold, target - hold
         f = max(1.0, fast_in / fast_out)
-        badge = f",{SPED_UP}" if f >= 1.5 else ""  # say so whenever we fast-forward a wait
+        badge = f",{SPED_UP}" if f >= 1.5 and clip in APP else ""  # say so whenever we fast-forward a wait
         run("-i", str(src), "-filter_complex",
             f"[0:v]trim={t0:.3f}:{t0 + fast_in:.3f},setpts=(PTS-STARTPTS)/{f:.4f}{badge}[a];"
             f"[0:v]trim={t0 + fast_in:.3f}:{t0 + v:.3f},setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1[v]",
