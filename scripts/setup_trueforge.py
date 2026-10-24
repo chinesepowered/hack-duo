@@ -139,8 +139,9 @@ Use 🍋 as the confidence scale: 🍋🍋🍋 strong match, 🍋🍋 good, 🍋
 
 FOLLOWUP_INSTRUCTIONS = """You are Capy's morning follow-up agent. Call `recall_me`; for every person the user MET whose
 follow_up is 'pending', call `intro_context`, write a short warm follow-up (≤ 60 words) that references what
-they talked about, and call `send_intro` for it. Every send waits for the user's approval. Finish with a
-one-line summary per person."""
+they talked about, and call `send_intro` for it. Don't ask the user anything first: TrueForge pauses every
+`send_intro` and shows the user the exact message to Allow or Deny. Refer to people by name, never he/she.
+Finish with a one-line summary per person."""
 
 
 def upsert_agent(c, name: str, description: str, manifest: dict):
@@ -171,7 +172,8 @@ def setup_agents(c):
                   "skills": skills, "config": config})
     upsert_agent(c, "capy-followup", "Morning follow-ups for everyone you met yesterday (each send needs your approval).",
                  {"model": model, "instructions": FOLLOWUP_INSTRUCTIONS, "mcp_servers": [capy_graph],
-                  "config": {**config, "sandbox": {"enabled": False}, "dynamic_sub_agents": {"enabled": False}}})
+                  "config": {**config, "sandbox": {"enabled": False}, "dynamic_sub_agents": {"enabled": False},
+                             "ask_user_questions": {"enabled": False}}})  # runs unattended; sends wait for approval
     print(f"agents: capy (skills={[s['name'] for s in skills]}, sandbox={sandbox}), capy-followup")
 
 

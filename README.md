@@ -65,7 +65,8 @@ that only goes out **after you approve it**.
 
 ### TrueForge + OpenAI — the agent runtime
 - **Agents** ([`scripts/setup_trueforge.py`](scripts/setup_trueforge.py), idempotent): `capy` (chat) and
-  `capy-followup` (runs on a **daily 8:00 schedule**), both on **OpenAI `gpt-6-luna`**. OpenAI also does
+  `capy-followup` (runs on a **daily 8:00 schedule**, or **Run now** from Schedules), both on **OpenAI `gpt-6-luna`**.
+  The follow-up agent reads the meetings the chat agent stored in FalkorDB and calls `send_intro`, which waits for Allow. OpenAI also does
   all GraphRAG extraction, embeddings (`text-embedding-3-small`) and reranking.
 - **MCP tools**: our `capy-graph` server ([`capy/server.py`](capy/server.py), streamable HTTP) + the
   **Bright Data remote MCP**, discovered on demand (deferred tool loading).
