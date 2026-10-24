@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capy Pals</title>
+<link rel="icon" href="/assets/capy.svg">
+<style>
+  :root {
+    --bg: #FBF6EE; --panel: #FFFFFF; --ink: #3B2A1E; --muted: #7A6656; --line: #EADFCF;
+    --capy: #8B5E3C; --capy-soft: #F3E6D6; --yuzu: #F5C518; --leaf: #6BAA4C; --teal: #2A9D8F; --coral: #E76F51;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--line);
+           background: linear-gradient(180deg, #FFF9EF, var(--bg)); }
+  header img { width: 58px; height: 50px; }
+  .brand h1 { margin: 0; font-size: 24px; letter-spacing: -.3px; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .chips { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip { background: var(--capy-soft); color: var(--capy); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .chip.ok { background: #E7F3E1; color: #3E7A2B; }
+  main { display: grid; grid-template-columns: minmax(420px, 44%) 1fr; gap: 16px; padding: 16px 22px; height: calc(100% - 80px); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  section h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  section h2 b { color: var(--ink); }
+  #cards { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+  .card { border: 1px solid var(--line); border-radius: 14px; padding: 11px 12px; transition: box-shadow .2s, transform .2s; background: #FFFCF8; }
+  .card.top { border-color: var(--yuzu); box-shadow: 0 0 0 3px #F5C51833; }
+  .card .row { display: flex; gap: 10px; align-items: center; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--capy-soft); color: var(--capy);
+            display: grid; place-items: center; font-weight: 800; flex: none; }
+  .who { flex: 1; min-width: 0; }
+  .who .n { font-weight: 800; font-size: 15.5px; }
+  .who .t { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .yuzu { font-size: 15px; letter-spacing: 1px; white-space: nowrap; }
+  .yuzu small { display: block; font-size: 10.5px; color: var(--muted); letter-spacing: 0; text-align: right; }
+  .why { margin: 7px 0 6px; font-size: 13.5px; }
+  .catch { display: inline-flex; gap: 6px; align-items: center; background: #E6F4F2; color: #1F6F66; border-radius: 9px; padding: 3px 9px; font-size: 12.5px; font-weight: 600; }
+  .receipt { margin-top: 7px; border-left: 3px solid var(--yuzu); padding: 2px 0 2px 9px; font-size: 12.5px; color: #5B4636; }
+  .receipt q { font-style: italic; }
+  .src { display: block; margin-top: 3px; font-size: 11.5px; color: var(--muted); }
+  .src a { color: var(--teal); text-decoration: none; font-weight: 600; }
+  #graphwrap { position: relative; flex: 1; min-height: 0; border-radius: 12px; background: #FFFDF9; border: 1px dashed var(--line); }
+  falkordb-canvas { position: absolute; inset: 0; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  #empty { color: var(--muted); text-align: center; margin: auto; max-width: 340px; }
+  #empty img { width: 120px; opacity: .9; }
+  .mem li { margin: 6px 0; }
+  .toast { position: fixed; right: 22px; bottom: 22px; background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
+           max-width: 460px; box-shadow: 0 10px 30px #0003; transform: translateY(140%); transition: transform .35s; font-size: 14px; }
+  .toast.show { transform: translateY(0); }
+  .toast b { color: var(--yuzu); }
+  .meta { font-size: 11.5px; color: var(--muted); margin-left: auto; font-weight: 500; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/assets/capy.svg" alt="">
+  <div class="brand">
+    <h1>Capy Pals</h1>
+    <p>Capy is friends with everyone. It finds the people here who already solved your problem — with receipts.</p>
+  </div>
+  <div class="chips">
+    <span class="chip">📍 GitHub Universe 2026</span>
+    <span class="chip" id="stats">loading graph…</span>
+    <span class="chip ok">public data only</span>
+  </div>
+</header>
+<main>
+  <section>
+    <h2 id="lefttitle">🦫 <b>Capy's picks</b> <span class="meta" id="took"></span></h2>
+    <div id="cards"><div id="empty"><img src="/assets/capy.svg" alt=""><p>Ask Capy who you should meet. Picks and receipts show up here.</p></div></div>
+  </section>
+  <section>
+    <h2>🔦 <b>Why?</b> the path through the FalkorDB graph <span class="meta">every hop is a real edge</span></h2>
+    <div id="graphwrap"><falkordb-canvas id="graph"></falkordb-canvas></div>
+    <div class="legend">
+      <span><i style="background:#F5C518"></i>You</span><span><i style="background:#E76F51"></i>Your problem</span>
+      <span><i style="background:#6BAA4C"></i>Practice / solution</span><span><i style="background:#3D8B7D"></i>Tool</span>
+      <span><i style="background:#8B5E3C"></i>Speaker</span><span><i style="background:#2A9D8F"></i>Talk</span>
+      <span><i style="background:#7B8794"></i>Source</span>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script type="module">
+  import "/assets/falkordb-canvas.js";
+  const COLORS = { Me: "#F5C518", Problem: "#E76F51", Practice: "#6BAA4C", Concept: "#6BAA4C", Tool: "#3D8B7D",
+                   Speaker: "#8B5E3C", Talk: "#2A9D8F", Document: "#7B8794", Organization: "#B08968" };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const canvas = $("graph");
+  let last = null;
+
+  function sizeCanvas() {
+    const r = $("graphwrap").getBoundingClientRect();
+    canvas.setConfig({ width: r.width, height: r.height, backgroundColor: "#FFFDF9", foregroundColor: "#3B2A1E",
+                       captionsKeys: ["name"], layoutMode: "tree", layoutOptions: { tree: { direction: "lr", levelDistance: 210, nodeSpacing: 70 } } });
+  }
+
+  const srcLabel = (r) => {
+    const kind = { talk: "Universe session catalog", linkedin_post: "LinkedIn post", linkedin_profile: "LinkedIn profile", persona: "Your profile" }[r.kind] || "source";
+    const via = (r.collector || "").includes("browser") ? "Bright Data Browser API" : (r.collector || "").includes("scraper") ? "Bright Data Scraper API"
+              : (r.collector || "").includes("unlocker") ? "Bright Data Web Unlocker" : "Bright Data";
+    const when = r.fetched_at ? new Date(r.fetched_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+    const link = r.source_url && r.source_url.startsWith("http") ? `<a href="${esc(r.source_url)}" target="_blank">${kind}</a>` : kind;
+    return `${link} · via ${via}${when ? " · fetched " + when : ""}`;
+  };
+
+  function card(p, i) {
+    const initials = p.name.split(" ").map((w) => w[0]).slice(0, 2).join("");
+    const av = p.avatar ? `<img class="avatar" src="${esc(p.avatar)}" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=avatar>${initials}</div>'">`
+                        : `<div class="avatar">${initials}</div>`;
+    const t = p.talks && p.talks[0];
+    const yz = "🍋".repeat(p.yuzu) + `<small>${["", "maybe", "good match", "strong match"][p.yuzu]}</small>`;
+    const rec = (p.receipts || []).slice(0, 2).map((r) => `<div class="receipt"><q>${esc(r.quote)}</q><span class="src">${srcLabel(r)}</span></div>`).join("");
+    return `<div class="card ${i === 0 ? "top" : ""}">
+      <div class="row">${av}<div class="who"><div class="n">${esc(p.name)}</div><div class="t">${esc(p.title)} · ${esc(p.company)}</div></div><div class="yuzu">${yz}</div></div>
+      <div class="why">${esc(p.why)}</div>
+      ${t ? `<span class="catch">🗓 ${esc(t.day.replace(/day,/, ","))} ${esc(t.time.replace(/ PDT$/, ""))} · ${esc(t.location)}</span>` : ""}
+      ${rec}</div>`;
+  }
+
+  function drawGraph(g) {
+    if (!g || !g.nodes) return;
+    const idx = new Map(g.nodes.map((n, i) => [n.id, i + 1]));
+    const short = (s) => (s && s.length > 34 ? s.slice(0, 32) + "…" : s);
+    canvas.setData({
+      nodes: g.nodes.map((n) => ({ id: idx.get(n.id), labels: [n.label], color: COLORS[n.label] || "#999", visible: true,
+                                   data: { name: n.label === "Talk" ? "🗓 " + short(n.name) : short(n.name) } })),
+      links: g.links.filter((l) => idx.has(l.source) && idx.has(l.target)).map((l, i) => ({
+        id: i + 1, relationship: l.rel, color: l.rel.startsWith("SIMILAR") ? "#F5C518" : "#B9A48E",
+        source: idx.get(l.source), target: idx.get(l.target), visible: true, data: {} })),
+    });
+    setTimeout(() => canvas.zoomToFit && canvas.zoomToFit(1.15), 900);
+  }
+
+  function toast(html) {
+    const t = $("toast"); t.innerHTML = html; t.classList.add("show");
+    clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 6000);
+  }
+
+  function render(v) {
+    if (v.kind === "matches" || v.kind === "why" || v.kind === "lookup") {
+      $("lefttitle").innerHTML = `🦫 <b>${v.kind === "lookup" ? "Fresh lookup" : v.kind === "why" ? "Why meet" : "Capy's picks"}</b>
+        <span style="font-weight:500">for: ${esc(v.query)}</span><span class="meta">${v.took_ms ? v.took_ms + " ms · FalkorDB" : ""}</span>`;
+      $("cards").innerHTML = v.people.map(card).join("") || `<div id="empty"><p>No one yet — try another problem.</p></div>`;
+      drawGraph(v.graph);
+    } else if (v.kind === "memory") {
+      $("lefttitle").innerHTML = `🧠 <b>Capy remembers</b><span class="meta">stored in the graph · survives sessions</span>`;
+      const met = (v.met || []).map((m) => `<li><b>${esc(m.name)}</b> — ${esc(m.notes)} <span class="src">${esc(m.where || "")} · follow-up: ${esc(m.follow_up)}</span></li>`).join("");
+      $("cards").innerHTML = `<div class="card mem"><div class="why"><b>${esc(v.me)}</b> is working on:</div><ul>${(v.problems || []).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+        <div class="why"><b>Met so far</b></div><ul>${met || "<li>nobody yet</li>"}</ul></div>`;
+      if (v.event) toast(`🧠 <b>Remembered</b> — ${esc(v.event)}`);
+    } else if (v.kind === "sent") {
+      toast(`✉️ <b>Sent to ${esc(v.to)}</b> (after your approval)<br>${esc(v.message).slice(0, 220)}`);
+    }
+  }
+
+  async function poll() {
+    try {
+      const v = await (await fetch("/api/view", { cache: "no-store" })).json();
+      if (v.generated_at && v.generated_at + v.kind !== last) { last = v.generated_at + v.kind; render(v); }
+    } catch (e) { /* server restarting */ }
+    setTimeout(poll, 1200);
+  }
+
+  async function stats() {
+    try {
+      const s = await (await fetch("/api/stats")).json();
+      $("stats").textContent = `${s.Speaker || 0} speakers · ${s.Talk || 0} sessions · ${s.facts || 0} facts`;
+    } catch (e) {}
+  }
+  addEventListener("resize", sizeCanvas);
+  sizeCanvas(); stats(); poll(); setInterval(stats, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# secrets & local state — never commit
+.env
+*.env
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+*.rdb
+*.sqlite
+# scraped data stays out of the public repo (sent separately)
+data/raw/
+data/export/
+# demo build artifacts
+demo/out/
+demo/tmp/
+data/view.json
+data/outbox.json

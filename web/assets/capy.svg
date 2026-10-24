@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 170" role="img" aria-label="Capy the capybara">
+  <!-- yuzu on head -->
+  <ellipse cx="104" cy="30" rx="22" ry="19" fill="#F5C518"/>
+  <ellipse cx="97" cy="24" rx="6" ry="4" fill="#FBE38A" opacity=".9"/>
+  <path d="M104 12 q6 -9 15 -7 q-5 8 -15 7z" fill="#6BAA4C"/>
+  <!-- body -->
+  <ellipse cx="102" cy="118" rx="78" ry="46" fill="#9A6A45"/>
+  <!-- head -->
+  <rect x="44" y="44" width="112" height="86" rx="43" fill="#A8774F"/>
+  <!-- ears -->
+  <ellipse cx="62" cy="52" rx="11" ry="9" fill="#7E5233"/>
+  <ellipse cx="140" cy="52" rx="11" ry="9" fill="#7E5233"/>
+  <!-- snout -->
+  <rect x="68" y="86" width="66" height="40" rx="20" fill="#8C5D3B"/>
+  <ellipse cx="88" cy="98" rx="5" ry="3.5" fill="#3B2A1E"/>
+  <ellipse cx="114" cy="98" rx="5" ry="3.5" fill="#3B2A1E"/>
+  <path d="M92 112 q9 7 18 0" stroke="#3B2A1E" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- sleepy-happy eyes -->
+  <path d="M66 74 q8 -7 16 0" stroke="#3B2A1E" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M120 74 q8 -7 16 0" stroke="#3B2A1E" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- blush -->
+  <ellipse cx="62" cy="92" rx="8" ry="5" fill="#E9967A" opacity=".55"/>
+  <ellipse cx="140" cy="92" rx="8" ry="5" fill="#E9967A" opacity=".55"/>
+  <!-- lanyard + badge -->
+  <path d="M78 128 L96 150 M126 128 L108 150" stroke="#2A9D8F" stroke-width="4"/>
+  <rect x="88" y="146" width="28" height="20" rx="4" fill="#F6EBDD" stroke="#2A9D8F" stroke-width="2"/>
+  <text x="102" y="160" font-family="system-ui, sans-serif" font-size="9" font-weight="700" fill="#3B2A1E" text-anchor="middle">CAPY</text>
+</svg>
