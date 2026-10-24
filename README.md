@@ -4,6 +4,8 @@
 <p align="center"><b>Capy is friends with everyone. It finds the people at the conference who already solved your problem — with receipts.</b><br>
 Patch the Conference Hackathon · FalkorDB × Bright Data × TrueForge + OpenAI</p>
 
+<p align="center">🎬 <b><a href="demo/capy-pals-demo.mp4">Watch the 2.5-minute demo</a></b> (<code>demo/capy-pals-demo.mp4</code>)</p>
+
 ---
 
 Conferences are full of people who have already solved your problem — you just can't find them.
