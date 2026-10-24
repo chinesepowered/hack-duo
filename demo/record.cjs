@@ -130,6 +130,7 @@ const SCENES = {
     throw new Error('s03 failed 3 times');
   },
   _s03: () => withPages('s03_ask', async (L, R) => {
+    fs.rmSync(path.join(__dirname, '..', 'data', 'view.json'), { force: true });  // panel starts empty, even on a retake
     const st = load(); st.sid1 = await newSession(); save(st);
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
     await sleep(2500);

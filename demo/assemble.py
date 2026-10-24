@@ -19,8 +19,15 @@ TIMELINE = [  # clip, narrations played over it
     ("s04b_plan", ["s04b_plan"]), ("s05_data", ["s05_data"]), ("s06_lookup", ["s06_lookup"]), ("s07_memory", ["s07_memory"]),
     ("s08_approve", ["s08_approve"]), ("s09_hood", ["s09_hood"]), ("s10_outro", ["s10_outro"]),
 ]
-GAP, LEAD = 0.45, 0.35
-HOLD = {"s08_approve": 15.0}  # seconds kept at 1x at the end of a clip (the approval must be seen)
+GAP, LEAD, TAIL = 0.45, 0.35, 0.7
+HOLD = {"s08_approve": 12.0}  # seconds kept at 1x at the end of a clip (the approval must be seen)
+APP = {"s03_ask", "s04b_plan", "s06_lookup", "s07_memory", "s08_approve"}
+START_TRIM = 1.5  # app clips open on half-loaded pages
+END_TRIM = {"s08_approve": 3.0}  # nothing happens after the sent toast
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+SPED_UP = (f"drawtext=fontfile={FONT}:text='▶▶ sped up':x=96:y=788:fontsize=18:fontcolor=white:"
+           "box=1:boxcolor=0x201A14@0.65:boxborderw=8")
+LOUDNESS = "loudnorm=I=-14:TP=-1.5:LRA=11"  # YouTube's reference level
 
 
 def run(*args):
@@ -60,23 +67,26 @@ def build_scene(i: int, clip: str, narr: list[str], script: dict) -> tuple[Path,
     src = CLIPS / f"{clip}.mp4"
     a_durs = [dur(AUDIO / f"{n}.mp3") for n in narr]
     a_total = LEAD + sum(a_durs) + GAP * (len(narr) - 1)
-    target = a_total + 1.0
+    target = a_total + TAIL
     if clip in HOLD:  # this scene's ending must play at 1x even if it outlasts the narration
         target = max(target, HOLD[clip] + 1.5)
-    v = dur(src)
+    t0 = START_TRIM if clip in APP else 0.0
+    v = dur(src) - t0 - END_TRIM.get(clip, 0.0)
     seg = BUILD / f"{i:02d}_{clip}_v.mp4"
     if v > target + 0.5:  # fast-forward the wait, keep the landing at 1x
         hold = HOLD.get(clip) or min(7.0, v * 0.35, target * 0.6)
         hold = min(hold, target - 0.5, v - 0.5)
         fast_in, fast_out = v - hold, target - hold
         f = max(1.0, fast_in / fast_out)
+        badge = f",{SPED_UP}" if f >= 1.5 else ""  # say so whenever we fast-forward a wait
         run("-i", str(src), "-filter_complex",
-            f"[0:v]trim=0:{fast_in:.3f},setpts=(PTS-STARTPTS)/{f:.4f}[a];"
-            f"[0:v]trim={fast_in:.3f},setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1[v]",
+            f"[0:v]trim={t0:.3f}:{t0 + fast_in:.3f},setpts=(PTS-STARTPTS)/{f:.4f}{badge}[a];"
+            f"[0:v]trim={t0 + fast_in:.3f}:{t0 + v:.3f},setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1[v]",
             "-map", "[v]", "-r", "30", "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p", str(seg))
     else:  # hold the last frame until the narration ends
         pad = max(0.0, target - v)
-        run("-i", str(src), "-vf", f"tpad=stop_mode=clone:stop_duration={pad:.3f}", "-r", "30",
+        run("-i", str(src), "-vf", f"trim={t0:.3f}:{t0 + v:.3f},setpts=PTS-STARTPTS,"
+            f"tpad=stop_mode=clone:stop_duration={pad:.3f}", "-r", "30",
             "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p", str(seg))
     length = dur(seg)
     # narration track for this scene
@@ -119,9 +129,11 @@ def main():
         style = ("FontName=DejaVu Sans,FontSize=12,PrimaryColour=&H00FFFFFF,OutlineColour=&H00201A14,BackColour=&H99201A14,"
                  "BorderStyle=4,Outline=1,Shadow=0,MarginV=10,Alignment=2")
         run("-i", str(joined), "-vf", f"subtitles={srt}:force_style='{style}'", "-c:v", "libx264", "-crf", "20",
-            "-preset", "medium", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(FINAL))
+            "-preset", "medium", "-pix_fmt", "yuv420p", "-af", LOUDNESS, "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+            "-movflags", "+faststart", str(FINAL))
     else:
-        run("-i", str(joined), "-c", "copy", "-movflags", "+faststart", str(FINAL))
+        run("-i", str(joined), "-c:v", "copy", "-af", LOUDNESS, "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+            "-movflags", "+faststart", str(FINAL))
     print(f"final: {FINAL} ({dur(FINAL):.1f}s)")
 
 
