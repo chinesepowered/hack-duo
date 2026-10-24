@@ -1,4 +1,4 @@
-"""Capy's matchmaking: who here already solved your problem — and the graph path that proves it.
+"""Capy's matchmaking: who here already solved your problem, and the graph path that proves it.
 
 Hybrid retrieval, all inside FalkorDB:
   1. vector search over entity embeddings: your problem -> similar Problem/Practice/Tool entities
@@ -7,6 +7,7 @@ Hybrid retrieval, all inside FalkorDB:
                       Speaker -[RELATES]-> x -[RELATES {ADDRESSES}]-> concept        (2 hops)
   3. lexical fallback: vector search over Chunks -> Document <- AUTHORED - Speaker
 Every hit carries a receipt: the source chunk text, its Document's source_url, collector and fetched_at.
+Each step is one query (UNWIND over concepts or people), so it stays fast against a remote FalkorDB Cloud.
 """
 import json
 import re
@@ -21,6 +22,7 @@ from capy.config import settings
 REL_WEIGHT = {"SOLVED": 1.0, "BUILT": 0.9, "PRACTICES": 0.8, "ADDRESSES": 0.75, "USES": 0.5, "FACES": 0.45}
 RERANK_SAMPLES = 3
 VIEW_PATH = settings.data_dir / "view.json"
+settings.data_dir.mkdir(exist_ok=True)  # a fresh clone has no data/ yet
 _oai = None
 
 
@@ -46,14 +48,18 @@ def my_problems() -> list[dict]:
     return [{"id": r[0], "name": r[1], "embedding": r[2]} for r in rows if r[2] is not None]
 
 
-def _chunks(ids: list[str]) -> list[dict]:
-    if not ids:
-        return []
+def _fill_evidence(people: list[dict]):
+    """Fetch the source chunks behind every graph hit of these people in one query (up to 3 per hit)."""
+    hits = [h for p in people for h in p["hits"] if "chunk_ids" in h]
+    ids = sorted({c for h in hits for c in h["chunk_ids"]})
     rows = G.ro("""MATCH (d:Document)-[:PART_OF]->(c:Chunk) WHERE c.id IN $ids
                    RETURN c.id, c.text, d.path, d.kind, d.source_url, d.collector, d.fetched_at, d.date_posted""",
-                ids=ids[:3])
-    return [{"chunk_id": r[0], "quote": r[1], "doc": r[2], "kind": r[3], "source_url": r[4],
-             "collector": r[5], "fetched_at": r[6], "date_posted": r[7]} for r in rows]
+                ids=ids) if ids else []
+    pos = {r[0]: i for i, r in enumerate(rows)}  # keep the database's order, as one query per hit did
+    by_id = {r[0]: {"chunk_id": r[0], "quote": r[1], "doc": r[2], "kind": r[3], "source_url": r[4],
+                    "collector": r[5], "fetched_at": r[6], "date_posted": r[7]} for r in rows}
+    for h in hits:
+        h["evidence"] = [by_id[c] for c in sorted((c for c in h.pop("chunk_ids") if c in by_id), key=pos.get)]
 
 
 def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = True, publish_view: bool = True) -> dict:
@@ -77,24 +83,31 @@ def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = 
                            RETURN node.id, node.name, labels(node), score""", v=vec)
         concepts = [(cid, cname, [l for l in labels if l != "__Entity__"][:1], sim(s))
                     for cid, cname, labels, s in concepts if cid != t["id"] and sim(s) >= 0.5]
-        for cid, cname, clabel, s in concepts:
-            if t["id"]:  # make the semantic link a real, visible edge
-                G.q("""MATCH (a:__Entity__ {id: $a}), (b:__Entity__ {id: $b})
-                       MERGE (a)-[e:SIMILAR_TO]->(b) SET e.score = $s""", a=t["id"], b=cid, s=round(s, 3))
-            direct = G.ro("""MATCH (p:Speaker)-[r:RELATES]->(c:__Entity__ {id: $cid})
-                             RETURN p.id, p.name, r.rel_type, r.fact, r.source_chunk_ids""", cid=cid)
-            for pid, pname, rel, fact, chunk_ids in direct:
-                add(pid, pname, s * REL_WEIGHT.get(rel, 0.4), {
-                    "problem": t["name"], "problem_id": t["id"], "concept": cname, "concept_id": cid,
-                    "concept_label": clabel[0] if clabel else "Concept", "similarity": round(s, 3),
-                    "rel": rel, "fact": fact, "via": None, "evidence": _chunks(chunk_ids or [])})
-            two_hop = G.ro("""MATCH (p:Speaker)-[r1:RELATES]->(x:__Entity__)-[r2:RELATES {rel_type: 'ADDRESSES'}]->(c:__Entity__ {id: $cid})
-                              RETURN p.id, p.name, r1.rel_type, x.name, x.id, r2.fact, r1.source_chunk_ids""", cid=cid)
-            for pid, pname, rel, xname, xid, fact, chunk_ids in two_hop:
-                add(pid, pname, s * REL_WEIGHT.get(rel, 0.4) * 0.85, {
-                    "problem": t["name"], "problem_id": t["id"], "concept": cname, "concept_id": cid,
-                    "concept_label": clabel[0] if clabel else "Concept", "similarity": round(s, 3),
-                    "rel": rel, "fact": fact, "via": {"name": xname, "id": xid}, "evidence": _chunks(chunk_ids or [])})
+        cids = [c[0] for c in concepts]
+        direct: dict[str, list] = {}
+        two_hop: dict[str, list] = {}
+        if cids:
+            if t["id"]:  # make the semantic links real, visible edges
+                G.q("""MATCH (a:__Entity__ {id: $a}) UNWIND $rows AS row MATCH (b:__Entity__ {id: row.b})
+                       MERGE (a)-[e:SIMILAR_TO]->(b) SET e.score = row.s""",
+                    a=t["id"], rows=[{"b": cid, "s": round(s, 3)} for cid, _, _, s in concepts])
+            for cid, *row in G.ro("""UNWIND $cids AS cid MATCH (p:Speaker)-[r:RELATES]->(c:__Entity__ {id: cid})
+                                    RETURN cid, p.id, p.name, r.rel_type, r.fact, r.source_chunk_ids""", cids=cids):
+                direct.setdefault(cid, []).append(row)
+            for cid, *row in G.ro("""UNWIND $cids AS cid
+                                    MATCH (p:Speaker)-[r1:RELATES]->(x:__Entity__)-[r2:RELATES {rel_type: 'ADDRESSES'}]->(c:__Entity__ {id: cid})
+                                    RETURN cid, p.id, p.name, r1.rel_type, x.name, x.id, r2.fact, r1.source_chunk_ids""",
+                                  cids=cids):
+                two_hop.setdefault(cid, []).append(row)
+        for cid, cname, clabel, s in concepts:  # same order as one query per concept
+            base = {"problem": t["name"], "problem_id": t["id"], "concept": cname, "concept_id": cid,
+                    "concept_label": clabel[0] if clabel else "Concept", "similarity": round(s, 3)}
+            for pid, pname, rel, fact, chunk_ids in direct.get(cid, []):
+                add(pid, pname, s * REL_WEIGHT.get(rel, 0.4),
+                    {**base, "rel": rel, "fact": fact, "via": None, "chunk_ids": (chunk_ids or [])[:3]})
+            for pid, pname, rel, xname, xid, fact, chunk_ids in two_hop.get(cid, []):
+                add(pid, pname, s * REL_WEIGHT.get(rel, 0.4) * 0.85,
+                    {**base, "rel": rel, "fact": fact, "via": {"name": xname, "id": xid}, "chunk_ids": (chunk_ids or [])[:3]})
         # lexical fallback: passages that talk about the problem, traced to their authors
         for pid, pname, cid, text, doc, kind, url, collector, fetched, posted, s in G.ro(
                 """CALL db.idx.vector.queryNodes('Chunk', 'embedding', 12, vecf32($v)) YIELD node, score
@@ -114,7 +127,9 @@ def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = 
         p["score"] = scores[0] + 0.25 * sum(scores[1:4])
     met = {r[0] for r in G.ro("MATCH (:Me)-[:MET]->(p) RETURN p.id")} if exclude_met else set()
     ranked = sorted((p for p in people.values() if p["id"] not in met), key=lambda p: -p["score"])
-    out = _dedupe_cospeakers([profile(p) for p in ranked[: max(limit * 3, 12)]])
+    chosen = ranked[: max(limit * 3, 12)]
+    _fill_evidence(chosen)
+    out = _dedupe_cospeakers(profiles(chosen))
     if problem and len(out) > 1:
         out = rerank(problem, out)
     out = out[:limit]
@@ -178,16 +193,23 @@ def rerank(problem: str, people: list[dict]) -> list[dict]:
     return sorted(people, key=lambda p: -p["final"])
 
 
-def profile(p: dict) -> dict:
-    row = G.ro("""MATCH (s:Speaker {id: $id}) OPTIONAL MATCH (s)-[:PRESENTS]->(t:Talk)
-                  RETURN s.name, s.title, s.company, s.linkedin_url, s.linkedin_confidence, s.avatar,
-                         collect(t {.id, .title, .kind, .day, .time, .location, .source_url, .fetched_at})""", id=p["id"])
-    name, title, company, li, conf, avatar, talks = row[0] if row else (p["name"], "", "", None, 0, None, [])
+def profiles(people: list[dict]) -> list[dict]:
+    """Speaker details and talks for all of these people in one query."""
+    rows = {r[0]: r[1:] for r in G.ro(
+        """UNWIND $ids AS id MATCH (s:Speaker {id: id}) OPTIONAL MATCH (s)-[:PRESENTS]->(t:Talk)
+           RETURN id, s.name, s.title, s.company, s.linkedin_url, s.linkedin_confidence, s.avatar,
+                  collect(t {.id, .title, .kind, .day, .time, .location, .source_url, .fetched_at})""",
+        ids=[p["id"] for p in people])} if people else {}
+    return [profile(p, rows.get(p["id"])) for p in people]
+
+
+def profile(p: dict, row: list | None = None) -> dict:
+    name, title, company, li, conf, avatar, talks = row or (p["name"], "", "", None, 0, None, [])
     hits = sorted(p["hits"], key=lambda h: -h["score"])
     best = hits[0]
     seen, receipts = set(), []
     for h in hits:
-        for e in h["evidence"]:
+        for e in h.get("evidence", []):
             if e["chunk_id"] in seen:
                 continue
             seen.add(e["chunk_id"])

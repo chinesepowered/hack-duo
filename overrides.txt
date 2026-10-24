@@ -1,0 +1,4 @@
+# uv overrides for requirements.txt (uv pip install -r requirements.txt --override overrides.txt)
+# hnswlib only backs the SDK's semantic/LLM-verified entity resolution, which Capy doesn't use
+# (it uses exact-match resolution). It has no Windows wheel and needs a C++ compiler, so skip it.
+hnswlib ; sys_platform == "never"
