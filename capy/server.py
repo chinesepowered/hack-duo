@@ -133,7 +133,9 @@ def send_intro(name: str, message: str) -> dict:
 @mcp.tool(annotations=LIVE)
 async def lookup_person(name: str, company: str = "") -> dict:
     """Live lookup of someone the user just met (or any speaker): Bright Data finds their LinkedIn profile
-    and fetches it fresh, Capy adds it to the graph, then reports common ground with the user's problems."""
+    and fetches it fresh, Capy adds it to the graph, then reports common ground with the user's problems.
+    `fresh_from_profile` is what the live fetch added: new facts and the person's own sentence closest to
+    one of the user's problems."""
     known = G.ro("MATCH (p:Person {id: $id}) RETURN p.linkedin_url, p.linkedin_confidence, p.company",
                  id=G.person_id(name))
     if known and known[0][0]:
@@ -151,27 +153,67 @@ async def lookup_person(name: str, company: str = "") -> dict:
         return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "fresh_fetch": "failed",
                 "note": "Bright Data couldn't fetch the profile right now; using what the graph already knows.",
                 **M.common_ground(name)}
-    doc_id = f"linkedin-profile:{G.person_id(name)}:{fetched_at[:16]}"
-    await rag().ingest(text=f"LinkedIn profile of {name} ({company}), fetched {fetched_at[:10]}:\n\n{text}",
-                       document_id=doc_id, extractor=_extractor())
+    doc_id = f"linkedin-profile:{G.person_id(name)}"  # one live profile per person: a re-lookup replaces it
+    res = await rag().update(text=f"LinkedIn profile of {name} ({company}), fetched {fetched_at[:10]}:\n\n{text}",
+                             document_id=doc_id, extractor=_extractor(), if_missing="ingest")
     G.q("""MERGE (p:__Entity__:Person {id: $pid}) ON CREATE SET p.name = $name
            SET p.linkedin_url = $li, p.linkedin_confidence = $conf, p.company = coalesce(p.company, $company)
            WITH p MATCH (d:Document {path: $doc})
            SET d.kind = 'linkedin_profile', d.source_url = $li, d.collector = $collector, d.fetched_at = $fetched
            MERGE (p)-[:AUTHORED]->(d)""", pid=G.person_id(name), name=name, li=hit["linkedin_url"],
         conf=hit["confidence"], company=company, doc=doc_id, collector=collector, fetched=fetched_at)
-    overlap = M.common_ground(name)
+    fresh = M.fresh_findings(name, doc_id)
+    receipt = {"quote": fresh["quote"], "kind": "linkedin_profile", "source_url": hit["linkedin_url"],
+               "collector": collector, "fetched_at": fetched_at} if fresh.get("quote") else None
+    overlap = M.common_ground(name, fresh_receipt=receipt)
     return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "identity": how,
-            "identity_confidence": hit["confidence"], "fetched_at": fetched_at, "collector": collector, **overlap}
+            "identity_confidence": hit["confidence"], "fetched_at": fetched_at, "collector": collector,
+            "graph_update": "unchanged since last fetch" if res.no_op else "added to the graph",
+            "fresh_from_profile": fresh, **overlap}
+
+
+_KEEP = ("about", "activity", "experience", "education", "licenses", "certifications", "recommendations",
+         "projects", "publications", "honors", "volunteer", "languages")
+_CHROME = re.compile(r"^(copy|linkedin|facebook|x|posts|comments|reactions|see more|show more|show|or|password|"
+                     r"email or phone|no more previous content|report this (post|profile)|\d+[smhdwy]o?|"
+                     r"\d+ comments?|(join now|sign in|continue with|forgot password|new to linkedin).*)$", re.I)
+
+
+def _clean_profile(md: str) -> str:
+    """A public LinkedIn page is mostly cookie/sign-in chrome. Keep what the person wrote or listed (about,
+    posts, experience, certifications, recommendations) so only their own words reach the graph."""
+    md = re.sub(r"(?s)SECURITY NOTICE:.*?_BEGIN=====|=====UNTRUSTED_[0-9a-f]+_END=====", "", md)
+    md = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", md)                    # images
+    md = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", md).replace("\\", "")  # links -> their text
+    lines = [l.strip(" \t*") for l in md.splitlines()]
+    out, seen = [next((l for l in lines if l), "")], set()  # first line: "Name - Company | LinkedIn"
+    keep = repost = False
+    for l in lines:
+        if l.startswith("## "):
+            keep, repost = any(k in l.lower() for k in _KEEP) and "full profile" not in l.lower(), False
+            if keep:
+                out.append(l)
+            continue
+        if re.search(r"(posted|shared|reposted) this$", l):  # a repost is someone else's words, not theirs
+            repost = l.endswith("reposted this")
+        if (repost or not keep or not l or l in seen or _CHROME.match(l) or "public_profile" in l or "undefined" in l
+                or not re.search(r"[A-Za-z]{2}", l.replace("*", ""))):
+            continue
+        seen.add(l)
+        out.append(l)
+    return "\n".join(out)
 
 
 async def _fresh_profile_text(url: str) -> tuple[str, str]:
     """Web Unlocker first (fast); if LinkedIn serves a wall or a thin page, use the LinkedIn profile Scraper API."""
     try:
-        md = await _unlock_markdown(url)
-        text = re.sub(r"(?s)SECURITY NOTICE:.*?_BEGIN=====|=====UNTRUSTED_[0-9a-f]+_END=====", "", md).strip()
-        if len(text) > 600 and "authwall" not in text.lower():
-            return text[:5000], "brightdata:web_unlocker"
+        text = ""
+        for _ in range(2):  # the unlocker occasionally answers 200 with an empty body
+            text = _clean_profile(await _unlock_markdown(url))
+            if len(text) > 300:
+                break
+        if len(text) > 300 and "authwall" not in text.lower():
+            return text[:6000], "brightdata:web_unlocker"
     except Exception as e:  # noqa: BLE001 - fall through to the scraper
         print(f"unlocker failed for {url}: {str(e)[:120]}")
     try:

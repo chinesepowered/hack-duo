@@ -20,6 +20,7 @@ TIMELINE = [  # clip, narrations played over it
     ("s08_approve", ["s08_approve"]), ("s09_hood", ["s09_hood"]), ("s10_outro", ["s10_outro"]),
 ]
 GAP, LEAD = 0.45, 0.35
+HOLD = {"s08_approve": 15.0}  # seconds kept at 1x at the end of a clip (the approval must be seen)
 
 
 def run(*args):
@@ -60,10 +61,13 @@ def build_scene(i: int, clip: str, narr: list[str], script: dict) -> tuple[Path,
     a_durs = [dur(AUDIO / f"{n}.mp3") for n in narr]
     a_total = LEAD + sum(a_durs) + GAP * (len(narr) - 1)
     target = a_total + 1.0
+    if clip in HOLD:  # this scene's ending must play at 1x even if it outlasts the narration
+        target = max(target, HOLD[clip] + 1.5)
     v = dur(src)
     seg = BUILD / f"{i:02d}_{clip}_v.mp4"
     if v > target + 0.5:  # fast-forward the wait, keep the landing at 1x
-        hold = min(7.0, v * 0.35, target * 0.6)
+        hold = HOLD.get(clip) or min(7.0, v * 0.35, target * 0.6)
+        hold = min(hold, target - 0.5, v - 0.5)
         fast_in, fast_out = v - hold, target - hold
         f = max(1.0, fast_in / fast_out)
         run("-i", str(src), "-filter_complex",

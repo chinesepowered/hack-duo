@@ -24,7 +24,10 @@ follow-ups that only send after you approve.
 - **SERP via Web Unlocker** resolves speakers to LinkedIn profiles with confidence scores (124/183);
   the **LinkedIn posts Scraper API** pulls 227 recent authored posts in one batched job.
 - **Live lookup** at the event: Web Unlocker fetch of a fresh profile with a **Scraper API fallback**,
-  ingested into the graph in ~30 s.
+  ingested into the graph in under a minute. Only the person's own words go in (About, posts, certifications,
+  recommendations): LinkedIn's sign-in/cookie chrome and reposts are stripped first (85 KB page → 4.5 KB of signal),
+  and a re-lookup **replaces** the old copy via GraphRAG `update` (no-op when the content hash is unchanged).
+  The answer leads with what the fresh fetch added — the person's own words, matched to your problem.
 - **Quality**: `source_url` + `collector` + `fetched_at` on every document and shown on every receipt;
   retries with backoff; failed records reported, not dropped; graceful fallback to cached graph data.
 - **Saves time**: hours of profile-stalking → the 3 people worth finding, with where/when to catch them.
@@ -43,9 +46,11 @@ follow-ups that only send after you approve.
 1. Open the TrueForge chat (left) and the Capy panel `localhost:8001/?side` (right).
 2. *"Hi Capy! Code review can't keep up with all the AI-generated pull requests on my team. Who here already solved that?"*
    → point at the lit path + receipts (source + fetched-at).
-3. *"Plan my Wednesday so I can catch them — use the sandbox."* → Code Mode itinerary.
-4. *"I just bumped into Andy Kelly from Precisely — look him up fresh."* → live Bright Data fetch.
-5. *"Remember I met Franck after his Home Assistant session…"* → New chat → *"Good morning Capy! Who am I following up with?"*
-6. *"Draft a follow-up to Franck and send it."* → **Allow** → sent (demo outbox).
+3. *"Plan my two days so I can catch all three. Write a quick sandbox script that pulls their sessions through the graph tools, sorts them by time and flags any clashes."* → Code Mode itinerary.
+4. *"I just bumped into Andy Kelly from Precisely at the badge party! Look Andy up fresh. What do we have in common?"* → live Bright Data fetch.
+5. *"Remember that I met David Pereira after the Copilot code review session. We swapped notes on PR review load, and I promised to send over our numbers…"*
+   → **New Chat** → *"Good morning Capy! ☕ Who am I waiting to follow up with?"*
+6. *"Please draft a short follow-up to David and send it."* → **Allow** → sent (demo outbox).
 
-If the venue Wi-Fi fails, play the video.
+Before going on stage, run `python -m scripts.reset_demo` to clear rehearsal meetings, intros and live lookups
+(the built graph stays). If the venue Wi-Fi fails, play the video.

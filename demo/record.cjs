@@ -25,7 +25,7 @@ async function api(method, p, body) {
 const newSession = async () => (await api('POST', '/api/v1/sessions', { agent: { name: 'capy' } })).data.id;
 const turns = async (sid) => (await api('GET', `/api/v1/sessions/${sid}/turns`)).data || [];
 
-async function waitTurn(sid, beforeIds, timeout = 240000) {
+async function waitTurn(sid, beforeIds, timeout = 200000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeout) {
     const ts = await turns(sid);
@@ -33,6 +33,7 @@ async function waitTurn(sid, beforeIds, timeout = 240000) {
     if (fresh && !['running', 'queued', 'pending'].includes(fresh.state.status)) return fresh.state.status;
     await sleep(1500);
   }
+  await api('POST', `/api/v1/sessions/${sid}/cancel`);  // don't leave a hung turn running
   throw new Error('turn timeout');
 }
 
@@ -111,11 +112,19 @@ const SCENES = {
   s09_hood: () => card('s09_hood'),
   s10_outro: () => card('s10_outro'),
   // ask + lit path (narrations s03 + s04 play over this one clip)
-  s03_ask: () => withPages('s03_ask', async (L, R) => {
+  s03_ask: async () => {  // fresh session each attempt, so a hung upstream call can simply be retried
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try { return await SCENES._s03(); } catch (e) { console.log(`s03 attempt ${attempt} failed: ${e.message}`); }
+    }
+    throw new Error('s03 failed 3 times');
+  },
+  _s03: () => withPages('s03_ask', async (L, R) => {
     const st = load(); st.sid1 = await newSession(); save(st);
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
     await sleep(2500);
     await ask(L, st.sid1, "Hi Capy! Code review can't keep up with all the AI-generated pull requests on my team. Who here already solved that?");
+    const picks = ((await (await fetch(`${CAPY}/api/view`)).json()).people || []).slice(0, 3).map((p) => p.name);
+    console.log('s03 picks:', picks.join(', '));  // later scenes meet and follow up with David Pereira
     await sleep(6000);
   }),
   s04b_plan: () => withPages('s04b_plan', async (L, R) => {
@@ -124,7 +133,7 @@ const SCENES = {
     try {
       await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
       await sleep(2500);
-      await ask(L, st.sid1, 'Plan my Wednesday so I can catch Franck, David and Sameen. Use the sandbox to pull their sessions, sort by time and flag any clashes.');
+      await ask(L, st.sid1, 'Plan my two days so I can catch all three. Write a quick sandbox script that pulls their sessions through the graph tools, sorts them by time and flags any clashes.');
       await sleep(6000);
     } finally { sandbox('off'); }
   }),
@@ -132,14 +141,14 @@ const SCENES = {
     const st = load();
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
     await sleep(2500);
-    await ask(L, st.sid1, process.env.LOOKUP_PROMPT || 'I just bumped into Andy Kelly from Precisely at the badge party! Look him up fresh. What do we have in common?');
+    await ask(L, st.sid1, process.env.LOOKUP_PROMPT || 'I just bumped into Andy Kelly from Precisely at the badge party! Look Andy up fresh. What do we have in common?');
     await sleep(5000);
   }),
   s07_memory: () => withPages('s07_memory', async (L, R) => {
     const st = load();
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid1}`)]);
     await sleep(2000);
-    await ask(L, st.sid1, 'Remember that I met Franck Nijhof after his Home Assistant session. We swapped notes on PR review load, and I promised to send him our numbers: agent PRs tripled since June, and our median review wait is 2.5 days.');
+    await ask(L, st.sid1, 'Remember that I met David Pereira after the Copilot code review session. We swapped notes on PR review load, and I promised to send over our numbers: agent PRs tripled since June, and our median review wait is 2.5 days.');
     await sleep(2500);
     st.sid2 = await newSession(); save(st);
     await L.goto(`${TF}/sessions/${st.sid2}`);
@@ -151,7 +160,7 @@ const SCENES = {
     const st = load();
     await Promise.all([R.goto(`${CAPY}/?side`), L.goto(`${TF}/sessions/${st.sid2}`)]);
     await sleep(2000);
-    const status = await ask(L, st.sid2, 'Please draft a short follow-up to Franck and send it.');
+    const status = await ask(L, st.sid2, 'Please draft a short follow-up to David and send it.');
     console.log('turn status before approval:', status);
     const gated = await L.getByRole('button', { name: /^(Allow|Approve)$/i }).last().isVisible().catch(() => false);
     if (!gated) {  // Capy showed the draft and asked first; say yes like a user would
@@ -166,7 +175,7 @@ const SCENES = {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const which = process.argv.slice(2);
-  for (const name of which.length ? which : Object.keys(SCENES)) {
+  for (const name of which.length ? which : Object.keys(SCENES).filter((n) => !n.startsWith('_'))) {
     await SCENES[name]();
   }
 })().catch((e) => { console.error(e); process.exit(1); });

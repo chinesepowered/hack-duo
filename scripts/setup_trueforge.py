@@ -72,6 +72,39 @@ def setup_sandbox(c):
     print("sandbox: daytona")
 
 
+SKILL = {"type": "git", "name": "capy-intro", "url": SKILL_REPO, "path": "skills/capy-intro", "ref": SKILL_REF,
+         "description": "Writing an intro or follow-up to someone at the conference: short, specific, and grounded "
+                        "in a receipt (their own words, with the source)."}
+
+
+def skill_public() -> bool:
+    """TrueForge imports skills from GitHub without credentials (and doesn't check at registration time)."""
+    repo = SKILL_REPO.removeprefix("https://github.com/").removesuffix(".git").strip("/")
+    try:
+        return httpx.get(f"https://raw.githubusercontent.com/{repo}/{SKILL_REF}/{SKILL['path']}/SKILL.md",
+                         timeout=15).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+def setup_skills(c):
+    if os.getenv("CAPY_SKILL", "on") != "on":
+        print("skill: skipped (CAPY_SKILL=off)")
+        return
+    if not skill_public():
+        print(f"skill: skipped — {SKILL_REPO} isn't public yet (TrueForge imports skills from GitHub)", file=sys.stderr)
+        return
+    put(c, "/api/v1/settings/skills", {"manifest": SKILL})
+    print(f"skill: capy-intro from {SKILL_REPO} @ {SKILL_REF}")
+
+
+def skill_ready(c) -> bool:
+    if os.getenv("CAPY_SKILL", "on") != "on" or not skill_public():
+        return False
+    r = c.get("/api/v1/settings/skills")
+    return r.status_code == 200 and any(s.get("name") == SKILL["name"] for s in r.json().get("data", []))
+
+
 CAPY_INSTRUCTIONS = """You are Capy 🦫, a chill, warm capybara who is friends with everyone at the conference
 (GitHub Universe 2026, Oct 28-29, San Francisco). Your job: help the user meet the people who already solved
 their problems — and prove why, with receipts.
@@ -83,15 +116,19 @@ How you work:
   Present the top 3 as Generative UI cards: name, role, why (one line), the receipt (short quote + source),
   and where to catch them (session, day, time, room). Mention that the full path is lit up in the Capy panel.
 - Never invent facts about people. Every claim about a person must come from a tool result (receipts).
-  If confidence is low (1 yuzu), say so.
+  If confidence is low (1 yuzu), say so. Don't guess anyone's gender: refer to people by name (or "they"),
+  e.g. "Catch David:" rather than "Catch him:".
 - "Why them?" -> `why_meet`. "When/where?" -> `where_to_find`. Open questions about talks -> `ask_graph`.
 - If the user wants to research several people at once, delegate one subagent per person, then merge.
 - When the user met someone, call `remember_meeting` with crisp notes (what you talked about, next step).
-- Someone new (not a speaker)? -> `lookup_person` fetches them live via Bright Data.
+- Someone the user just met, or "look them up"? -> `lookup_person` fetches their profile live via Bright Data.
+  Lead with what the fresh fetch found (`fresh_from_profile`: their own words and which of the user's problems
+  it matches), then the common ground and where to catch them.
 - Intros / follow-ups: call `intro_context`, write a short (≤ 70 words), specific, human message that
   references the receipt, show it, then call `send_intro`. The user always approves before it sends.
-- To plan a schedule around several people, use the sandbox (Code Mode) to call `where_to_find` for each and
-  sort by time, flag clashes, and return a simple itinerary table.
+- To plan a schedule around several people, write ONE sandbox script (Code Mode) that calls `where_to_find`
+  for each person through the MCP client, sorts the sessions by time and computes clashes in code — don't
+  fetch them outside the sandbox first or hard-code results. Then return a simple itinerary table.
 Act, don't ask: lookups and memory writes (`remember_meeting`, `want_to_meet`, `lookup_person`) are safe, so
 do them immediately without asking for confirmation. Only `send_intro` reaches a real person — TrueForge
 already pauses it for the user's approval, so don't ask a separate question first; just call it with the
@@ -120,7 +157,7 @@ def upsert_agent(c, name: str, description: str, manifest: dict):
 def setup_agents(c):
     model = {"name": f"openai/{MODEL.replace('.', '-')}", "params": {"reasoning_effort": "low"}}
     sandbox = bool(os.getenv("DAYTONA_API_KEY")) and os.getenv("CAPY_SANDBOX", "on") == "on"
-    skills = [{"name": "capy-intro"}] if sandbox and os.getenv("CAPY_SKILL", "on") == "on" else []
+    skills = [{"name": SKILL["name"]}] if sandbox and skill_ready(c) else []
     capy_graph = {"name": "capy-graph", "enable_tools": ["@all"], "require_approval_for_tools": ["send_intro"],
                   "preload": True}
     brightdata = {"name": "brightdata", "enable_tools": ["search_engine", "scrape_as_markdown"],
@@ -152,8 +189,8 @@ def setup_schedules(c):
     print("schedule: capy-morning-followups (daily 8:00 America/Los_Angeles)")
 
 
-STEPS = {"models": setup_models, "mcp": setup_mcp, "sandbox": setup_sandbox, "agents": setup_agents,
-         "schedules": setup_schedules}
+STEPS = {"models": setup_models, "mcp": setup_mcp, "sandbox": setup_sandbox, "skills": setup_skills,
+         "agents": setup_agents, "schedules": setup_schedules}
 
 
 def main():

@@ -19,15 +19,20 @@ from capy import graph as G
 from capy.config import settings
 
 REL_WEIGHT = {"SOLVED": 1.0, "BUILT": 0.9, "PRACTICES": 0.8, "ADDRESSES": 0.75, "USES": 0.5, "FACES": 0.45}
+RERANK_SAMPLES = 3
 VIEW_PATH = settings.data_dir / "view.json"
 _oai = None
 
 
 def embed(text: str) -> list[float]:
+    return embed_many([text])[0]
+
+
+def embed_many(texts: list[str]) -> list[list[float]]:
     global _oai
     _oai = _oai or OpenAI(api_key=settings.openai_api_key)
-    r = _oai.embeddings.create(model=settings.embedding_model, input=text, dimensions=G.EMBED_DIM)
-    return r.data[0].embedding
+    r = _oai.embeddings.create(model=settings.embedding_model, input=texts, dimensions=G.EMBED_DIM)
+    return [d.embedding for d in r.data]
 
 
 def sim(score: float) -> float:
@@ -139,21 +144,29 @@ def _dedupe_cospeakers(people: list[dict]) -> list[dict]:
     return out
 
 
+_rerank_cache: dict[tuple, dict] = {}
+
+
 def rerank(problem: str, people: list[dict]) -> list[dict]:
-    """LLM relevance check over the graph's candidates: does this evidence show they solved *this* problem?"""
+    """LLM relevance check over the graph's candidates: does this evidence show they solved *this* problem?
+    Averaged over a few samples and cached per (problem, candidates), so the same question ranks the same way."""
     global _oai
     _oai = _oai or OpenAI(api_key=settings.openai_api_key)
     items = [{"i": i, "name": p["name"], "evidence": p["why"] + " | " + " | ".join(r["quote"][:300] for r in p["receipts"][:2])}
              for i, p in enumerate(people)]
+    key = (" ".join(problem.lower().split()), tuple(p["id"] for p in people))
     try:
-        r = _oai.chat.completions.create(
-            model=settings.openai_model, reasoning_effort="none", temperature=0,
-            response_format={"type": "json_object"},
-            messages=[{"role": "system", "content": "Score how directly each candidate's evidence shows they have "
-                       "solved or deeply worked on the user's problem. 0 = unrelated, 10 = solved exactly this. "
-                       'Reply as JSON: {"scores": [{"i": 0, "score": 7}, ...]}.'},
-                      {"role": "user", "content": json.dumps({"problem": problem, "candidates": items})}])
-        scores = {s["i"]: float(s["score"]) for s in json.loads(r.choices[0].message.content)["scores"]}
+        if key not in _rerank_cache:
+            r = _oai.chat.completions.create(
+                model=settings.openai_model, reasoning_effort="none", temperature=0, seed=7, n=RERANK_SAMPLES,
+                response_format={"type": "json_object"},
+                messages=[{"role": "system", "content": "Score how directly each candidate's evidence shows they have "
+                           "solved or deeply worked on the user's problem. 0 = unrelated, 10 = solved exactly this. "
+                           'Reply as JSON: {"scores": [{"i": 0, "score": 7}, ...]}.'},
+                          {"role": "user", "content": json.dumps({"problem": problem, "candidates": items})}])
+            samples = [{s["i"]: float(s["score"]) for s in json.loads(ch.message.content)["scores"]} for ch in r.choices]
+            _rerank_cache[key] = {i: sum(s.get(i, 0.0) for s in samples) / len(samples) for i in range(len(people))}
+        scores = _rerank_cache[key]
     except Exception as e:  # noqa: BLE001 - graph ranking still stands if the reranker hiccups
         print(f"rerank skipped: {str(e)[:120]}")
         return people
@@ -245,11 +258,35 @@ def build_path(people: list[dict]) -> dict:
     return {"nodes": list(nodes.values()), "links": [dict(l, id=i) for i, l in enumerate(links)]}
 
 
-def common_ground(name: str) -> dict:
+def fresh_findings(name: str, doc_id: str) -> dict:
+    """What a just-fetched document adds about someone: the facts it supports, and the sentence in it (their own
+    words) closest to one of the user's problems."""
+    rows = G.ro("MATCH (:Document {id: $d})-[:PART_OF]->(c:Chunk) RETURN c.id, c.text", d=doc_id)
+    facts = [f"{rel} {obj}" for rel, obj in G.ro(
+        """MATCH (p:Person {id: $pid})-[r:RELATES]->(x) WHERE r.rel_type <> 'WORKS_AT'
+           AND any(c IN r.source_chunk_ids WHERE c IN $ids) RETURN r.rel_type, x.name LIMIT 8""",
+        pid=G.person_id(name), ids=[r[0] for r in rows])]
+    sentences = list(dict.fromkeys(  # chunks overlap, so de-duplicate
+        s for _, text in rows for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith(("#", "LinkedIn profile of"))
+        for s in re.split(r"(?<=[.!?])\s+", line.strip()) if 40 <= len(s) <= 280))[:150]
+    problems = [r[0] for r in G.ro("MATCH (:Me)-[:RELATES {rel_type: 'FACES'}]->(p) RETURN p.name")]
+    if not sentences or not problems:
+        return {"new_facts": facts}
+    vecs = embed_many(problems + sentences)
+    pv, sv = vecs[:len(problems)], vecs[len(problems):]
+    score, quote, problem = max((sum(a * b for a, b in zip(v, q)), s, p)
+                                for s, v in zip(sentences, sv) for p, q in zip(problems, pv))
+    return {"new_facts": facts, "quote": quote, "closest_to_your_problem": problem, "similarity": round(score, 2)}
+
+
+def common_ground(name: str, fresh_receipt: dict | None = None) -> dict:
     """What links a (possibly just-looked-up) person to the user's problems, with the path for the UI."""
     view = find_people(None, limit=60, exclude_met=False, publish_view=False)
     person = next((p for p in view["people"] if p["name"].lower() == name.lower()), None)
     if person:
+        if fresh_receipt:  # lead with what the live fetch just found
+            person["receipts"] = [fresh_receipt] + person["receipts"]
         publish({**view, "kind": "lookup", "focus": person["id"], "people": [person], "graph": build_path([person])})
         return {"common_ground": person["why"], "yuzu": person["yuzu"], "receipts": person["receipts"][:2],
                 "talks": person["talks"][:2]}
@@ -262,7 +299,20 @@ def where_to_find(name: str) -> dict:
     pid = G.person_id(name)
     rows = G.ro("""MATCH (s:Person {id: $id})-[:PRESENTS]->(t:Talk)
                    RETURN t.title, t.kind, t.day, t.time, t.location, t.source_url ORDER BY t.day, t.time""", id=pid)
-    return {"name": name, "talks": [dict(zip(["title", "kind", "day", "time", "location", "source_url"], r)) for r in rows]}
+    talks = [dict(zip(["title", "kind", "day", "time", "location", "source_url"], r)) for r in rows]
+    for t in talks:  # machine-friendly times for scripts (sandbox / Code Mode)
+        t["start"], t["end"] = _iso_span(t["day"], t["time"])
+    return {"name": name, "talks": talks}
+
+
+def _iso_span(day: str, span: str) -> tuple[str | None, str | None]:
+    """'Wednesday, Oct 28' + '1:10 PM - 1:25 PM PDT' -> ISO start/end in Pacific time (Universe 2026)."""
+    d = re.match(r"\w+, (\w{3}) (\d{1,2})$", (day or "").strip())
+    t = re.match(r"(\d{1,2}:\d{2} [AP]M) - (\d{1,2}:\d{2} [AP]M)", (span or "").strip())
+    if not d or not t:
+        return None, None
+    iso = lambda hm: datetime.strptime(f"2026 {d[1]} {d[2]} {hm}", "%Y %b %d %I:%M %p").strftime("%Y-%m-%dT%H:%M:00-07:00")
+    return iso(t[1]), iso(t[2])
 
 
 def remember_meeting(name: str, notes: str, where: str = "") -> dict:

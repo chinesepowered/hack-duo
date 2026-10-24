@@ -15,7 +15,8 @@ mkdir -p .run
 if [ "${FALKORDB_HOST:-localhost}" = "localhost" ] && ! (echo PING | nc -w1 localhost "${FALKORDB_PORT:-6379}" >/dev/null 2>&1); then
   if command -v docker >/dev/null; then
     docker run -d --rm --name capy-falkordb -p 6379:6379 -p 3000:3000 falkordb/falkordb:v4.22.2 >/dev/null
-  else
+  else  # no Docker: embedded FalkorDB (Linux wheels)
+    pip install -q falkordblite==0.11.0
     BIN=$(python -c 'import redislite,os;print(os.path.dirname(redislite.__file__))')/bin
     "$BIN/redis-server" --port 6379 --daemonize yes --dir .run --loadmodule "$BIN/falkordb.so" >/dev/null
   fi
@@ -37,10 +38,11 @@ echo "starting capy-graph (MCP + UI) on :8001"
 uvicorn capy.server:app --host 127.0.0.1 --port 8001 --log-level warning > .run/capy.log 2>&1 &
 echo "starting TrueForge on :8790"
 OUTBOUND_URL_ALLOWED_HOSTS='["localhost","127.0.0.1"]' SQLITE_PATH="$PWD/.run/trueforge.sqlite" \
-  npx -y @truefoundry/trueforge@latest --port 8790 > .run/trueforge.log 2>&1 &
+  npx -y @truefoundry/trueforge@0.180.0 --port 8790 > .run/trueforge.log 2>&1 &
 until curl -s -o /dev/null http://localhost:8790/api/v1/capabilities; do sleep 1; done
 python -m scripts.setup_trueforge
 echo
 echo "  🦫 Capy panel:     http://localhost:8001/      (side-by-side: http://localhost:8001/?side)"
 echo "  🤖 TrueForge chat: http://localhost:8790/      → Agents → capy → Try"
+echo "  before going on stage: python -m scripts.reset_demo   (clears rehearsal meetings, intros, live lookups)"
 wait

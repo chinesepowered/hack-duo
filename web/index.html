@@ -64,7 +64,7 @@
   body.side main > section:first-child { order: 2; }
   body.side .legend { display: none; }
   body.side .card { padding: 9px 10px; }
-  body.side .receipt:nth-of-type(n+2) { display: none; }
+  body.side .receipt ~ .receipt { display: none; }
 </style>
 </head>
 <body>
@@ -171,7 +171,7 @@
         id: i + 1, relationship: l.rel, color: l.rel.startsWith("SIMILAR") ? "#F5C518" : "#B9A48E",
         source: idx.get(l.source), target: idx.get(l.target), visible: true, data: {} })),
     });
-    for (const ms of [700, 1600, 2600]) setTimeout(() => canvas.zoomToFit && canvas.zoomToFit(1.2), ms);
+    for (const ms of [700, 1600, 2600]) setTimeout(() => canvas.zoomToFit && canvas.zoomToFit(0.9), ms);
   }
 
   function toast(html) {

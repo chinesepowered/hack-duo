@@ -19,13 +19,13 @@ that only goes out **after you approve it**.
 1. **"Who should I meet?"** → Capy (a TrueForge agent on `gpt-6-luna`) searches the FalkorDB graph and
    returns the top people, each with a **receipt** (their own words + source + when it was fetched) and
    the **session, time and room** to catch them. The Capy panel **lights up the graph path** behind each pick.
-2. **"Plan my Wednesday around them."** → Capy runs a script in a **TrueForge sandbox (Code Mode)** that
+2. **"Plan my two days so I can catch all three."** → Capy runs a script in a **TrueForge sandbox (Code Mode)** that
    calls the graph tools for each person, sorts by time and flags clashes.
 3. **"I just bumped into Andy Kelly — what do we have in common?"** → **live Bright Data lookup**
    (identity → fresh profile fetch), added to the graph incrementally, common ground computed.
-4. **"Remember I met Franck…"** → memory written to the graph. Next morning, **a brand-new session still
+4. **"Remember I met David…"** → memory written to the graph. Next morning, **a brand-new session still
    knows** who you met and who's waiting on a follow-up.
-5. **"Draft a follow-up to Franck and send it."** → grounded in the receipt; **TrueForge pauses for human
+5. **"Draft a follow-up to David and send it."** → grounded in the receipt; **TrueForge pauses for human
    approval** before `send_intro` runs.
 
 ## How each sponsor powers it
@@ -55,7 +55,10 @@ that only goes out **after you approve it**.
 - **Scraper API** (`LinkedIn posts`, discover by profile URL, authored only) — one batched job → **227 recent posts**.
 - **Live lookups** at the conference: identity from the graph or SERP → **Web Unlocker** fetch of the
   profile, falling back to the **LinkedIn profile Scraper API** if the page is thin → incremental GraphRAG ingest
-  ([`capy/server.py` `lookup_person`](capy/server.py)).
+  ([`capy/server.py` `lookup_person`](capy/server.py)). Only the person's own words are kept (About, posts,
+  certifications, recommendations; sign-in/cookie chrome and reposts are stripped), and a re-lookup replaces the
+  previous copy with GraphRAG `update` (a content-hash no-op when nothing changed). Capy then leads with what the
+  fresh fetch added: the new facts, and the person's own sentence closest to your problem, as the first receipt.
 - **Data quality**: every Document carries `source_url`, `collector` and `fetched_at`; receipts show them;
   failed records are kept and reported, retries with backoff, graceful "using what the graph already
   knows" when a live fetch fails; co-speaker de-duplication; an LLM rerank checks evidence relevance.
@@ -95,9 +98,12 @@ cp .env.example .env      # OpenAI, Bright Data, Daytona keys; FalkorDB Cloud ho
 - Capy panel: http://localhost:8001 (side-by-side layout: `/?side`) · TrueForge chat: http://localhost:8790
 - **FalkorDB Cloud**: put the instance endpoint in `.env`; `start.sh` loads the prebuilt graph with
   `python -m scripts.graph_io load data/export/capy-graph.jsonl.gz` the first time (vectors and indexes included).
+- Before a live demo: `python -m scripts.reset_demo` clears rehearsal meetings, intros and live lookups (the built graph stays).
 - Rebuild the data from scratch: `python -m scripts.fetch_catalog && python -m scripts.research_speakers && python -m scripts.build_graph`.
-- The `capy-intro` skill is imported from this repo by TrueForge, so the repo must be public
-  (or set `CAPY_SKILL=off`).
+- The `capy-intro` skill is imported from this repo by TrueForge, so it is only registered once the repo is
+  public (setup checks and skips it until then; `CAPY_SKILL=off` disables it).
+- Can't reach FalkorDB Cloud? Try `FALKORDB_TLS=true`, or set `FALKORDB_HOST=localhost` and `start.sh` runs a
+  local FalkorDB (Docker, or the embedded build) and loads the same graph.
 
 ## Demo video
 [`demo/`](demo/) builds it end to end from the **real running apps**: ElevenLabs narration
