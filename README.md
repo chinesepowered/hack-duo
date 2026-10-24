@@ -11,14 +11,6 @@ Capy Pals is a capybara agent that turns a conference's sessions and speakers in
 <a href="https://www.youtube.com/watch?v=2iBrMS7ulGM"><img src="docs/video-thumb.jpg" width="900" alt="Watch the Capy Pals demo on YouTube (2:25)"></a>
 
 **https://www.youtube.com/watch?v=2iBrMS7ulGM** · every scene is a real recording of the running apps (also in the repo: [`demo/capy-pals-demo.mp4`](demo/capy-pals-demo.mp4)).
-Jump to:
-[0:26 who already solved it](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=26s) ·
-[0:54 Code Mode plan](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=54s) ·
-[1:05 the data](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=65s) ·
-[1:27 live lookup](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=87s) ·
-[1:36 memory](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=96s) ·
-[1:45 approval](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=105s) ·
-[1:59 under the hood](https://www.youtube.com/watch?v=2iBrMS7ulGM&t=119s)
 
 ## The problem
 
@@ -191,11 +183,5 @@ cp .env.example .env    # OpenAI, Bright Data and Daytona keys; FalkorDB Cloud h
 | [`web/`](web/) | The Capy panel (@falkordb/canvas) |
 | [`skills/capy-intro/`](skills/capy-intro/) | The TrueForge skill |
 | [`demo/`](demo/) | The video pipeline: ElevenLabs narration, Playwright recording of the real apps, ffmpeg assembly |
-
-## Privacy & honesty
-
-- Only **public** data about **conference speakers**: the session catalog and public LinkedIn posts and profiles. The scraped dataset stays out of this repo.
-- Maya is a **fictional** persona, and the meeting notes in the demo are hers. Messages go to a **demo outbox**, and only after explicit approval.
-- Capy refers to people by name and never guesses their pronouns.
 
 <p align="center">Built in one day at the Patch the Conference Hackathon · Bright Data, San Francisco · Oct 24, 2026</p>
