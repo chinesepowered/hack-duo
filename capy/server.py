@@ -131,28 +131,56 @@ def send_intro(name: str, message: str) -> dict:
 async def lookup_person(name: str, company: str = "") -> dict:
     """Live lookup of someone the user just met (or any speaker): Bright Data finds their LinkedIn profile
     and fetches it fresh, Capy adds it to the graph, then reports common ground with the user's problems."""
-    query = f'"{name}" {company} linkedin'.strip()
-    results = (await bd.serp([query])).get(query, [])
-    from scripts.research_speakers import pick_profile
-    hit = pick_profile(name, company, results)
-    if not hit:
-        return {"name": name, "found": False, "searched": query}
+    known = G.ro("MATCH (p:Person {id: $id}) RETURN p.linkedin_url, p.linkedin_confidence, p.company",
+                 id=G.person_id(name))
+    if known and known[0][0]:
+        hit, how = {"linkedin_url": known[0][0], "confidence": known[0][1] or 0.7}, "graph identity"
+        company = company or known[0][2] or ""
+    else:
+        from scripts.research_speakers import pick_profile
+        query = f'"{name}" {company} linkedin'.strip()
+        hit, how = pick_profile(name, company, (await bd.serp([query])).get(query, [])), "brightdata:serp"
+        if not hit:
+            return {"name": name, "found": False, "searched": query}
     fetched_at = bd.now()
-    md = await _unlock_markdown(hit["linkedin_url"])
-    text = re.sub(r"(?s)SECURITY NOTICE:.*?_BEGIN=====|=====UNTRUSTED_[0-9a-f]+_END=====", "", md).strip()[:5000]
-    doc_id = f"linkedin-profile:{G.person_id(name)}"
+    text, collector = await _fresh_profile_text(hit["linkedin_url"])
+    if not text:
+        return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "fresh_fetch": "failed",
+                "note": "Bright Data couldn't fetch the profile right now; using what the graph already knows.",
+                **M.common_ground(name)}
+    doc_id = f"linkedin-profile:{G.person_id(name)}:{fetched_at[:16]}"
     await rag().ingest(text=f"LinkedIn profile of {name} ({company}), fetched {fetched_at[:10]}:\n\n{text}",
                        document_id=doc_id, extractor=_extractor())
     G.q("""MERGE (p:__Entity__:Person {id: $pid}) ON CREATE SET p.name = $name
            SET p.linkedin_url = $li, p.linkedin_confidence = $conf, p.company = coalesce(p.company, $company)
            WITH p MATCH (d:Document {path: $doc})
-           SET d.kind = 'linkedin_profile', d.source_url = $li, d.collector = 'brightdata:web_unlocker',
-               d.fetched_at = $fetched
+           SET d.kind = 'linkedin_profile', d.source_url = $li, d.collector = $collector, d.fetched_at = $fetched
            MERGE (p)-[:AUTHORED]->(d)""", pid=G.person_id(name), name=name, li=hit["linkedin_url"],
-        conf=hit["confidence"], company=company, doc=doc_id, fetched=fetched_at)
+        conf=hit["confidence"], company=company, doc=doc_id, collector=collector, fetched=fetched_at)
     overlap = M.common_ground(name)
-    return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "identity_confidence": hit["confidence"],
-            "fetched_at": fetched_at, "collector": "brightdata:serp + web_unlocker", **overlap}
+    return {"name": name, "found": True, "linkedin_url": hit["linkedin_url"], "identity": how,
+            "identity_confidence": hit["confidence"], "fetched_at": fetched_at, "collector": collector, **overlap}
+
+
+async def _fresh_profile_text(url: str) -> tuple[str, str]:
+    """Web Unlocker first (fast); if LinkedIn serves a wall or a thin page, use the LinkedIn profile Scraper API."""
+    try:
+        md = await _unlock_markdown(url)
+        text = re.sub(r"(?s)SECURITY NOTICE:.*?_BEGIN=====|=====UNTRUSTED_[0-9a-f]+_END=====", "", md).strip()
+        if len(text) > 600 and "authwall" not in text.lower():
+            return text[:5000], "brightdata:web_unlocker"
+    except Exception as e:  # noqa: BLE001 - fall through to the scraper
+        print(f"unlocker failed for {url}: {str(e)[:120]}")
+    try:
+        recs = await asyncio.to_thread(bd.scrape, bd.LINKEDIN_PROFILES, [{"url": url}])
+        r = next((x for x in recs if not x.get("error")), None)
+        if r:
+            bits = [r.get("about") or "", f"Current company: {(r.get('current_company') or {}).get('name', '')}",
+                    *[f"Recent post: {p.get('title') or p.get('attribution') or ''}" for p in (r.get("posts") or [])[:5]]]
+            return "\n".join(b for b in bits if b.strip())[:5000], f"brightdata:scraper:{bd.LINKEDIN_PROFILES}"
+    except Exception as e:  # noqa: BLE001
+        print(f"profile scraper failed for {url}: {str(e)[:120]}")
+    return "", ""
 
 
 def _extractor():

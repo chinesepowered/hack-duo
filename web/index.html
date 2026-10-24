@@ -55,6 +55,16 @@
   .toast.show { transform: translateY(0); }
   .toast b { color: var(--yuzu); }
   .meta { font-size: 11.5px; color: var(--muted); margin-left: auto; font-weight: 500; }
+  /* side-by-side mode (next to the TrueForge chat): path on top, top picks below */
+  body.side header { padding: 10px 14px; gap: 10px; }
+  body.side header img { width: 44px; height: 38px; }
+  body.side .brand h1 { font-size: 20px; }
+  body.side .brand p, body.side .chip:first-child { display: none; }
+  body.side main { grid-template-columns: 1fr; grid-template-rows: 54% 1fr; padding: 10px 12px; gap: 10px; height: calc(100% - 62px); }
+  body.side main > section:first-child { order: 2; }
+  body.side .legend { display: none; }
+  body.side .card { padding: 9px 10px; }
+  body.side .receipt:nth-of-type(n+2) { display: none; }
 </style>
 </head>
 <body>
@@ -94,12 +104,37 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const canvas = $("graph");
+  if (new URLSearchParams(location.search).has("side")) document.body.classList.add("side");
   let last = null;
 
+  const RADIUS = { Me: 15, Speaker: 13, Problem: 11, Talk: 11 };
+  function wrap(text, max = 18, lines = 3) {
+    const out = [""];
+    for (const w of String(text).split(/\s+/)) {
+      if ((out[out.length - 1] + " " + w).trim().length > max) out.push(w); else out[out.length - 1] = (out[out.length - 1] + " " + w).trim();
+    }
+    return out.slice(0, lines).map((l, i, a) => (i === lines - 1 && out.length > lines ? l + "…" : l));
+  }
+  function drawNode(node, ctx) {
+    const r = RADIUS[node.labels[0]] || 10;
+    ctx.beginPath(); ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = node.color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#FFFDF9"; ctx.stroke();
+    if (node.labels[0] === "Me") { ctx.font = `${r}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🦫", node.x, node.y + 1); }
+    ctx.font = "600 7.5px ui-rounded, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    const lines = wrap(node.data.name);
+    lines.forEach((l, i) => {
+      const y = node.y + r + 3 + i * 9;
+      ctx.lineWidth = 3; ctx.strokeStyle = "#FFFDF9"; ctx.strokeText(l, node.x, y);
+      ctx.fillStyle = "#3B2A1E"; ctx.fillText(l, node.x, y);
+    });
+  }
   function sizeCanvas() {
     const r = $("graphwrap").getBoundingClientRect();
+    canvas.setAttribute("node-mode", "replace");
     canvas.setConfig({ width: r.width, height: r.height, backgroundColor: "#FFFDF9", foregroundColor: "#3B2A1E",
-                       captionsKeys: ["name"], layoutMode: "tree", layoutOptions: { tree: { direction: "lr", levelDistance: 210, nodeSpacing: 70 } } });
+                       layoutMode: "tree", layoutOptions: { tree: { direction: "lr", levelDistance: 170, nodeSpacing: 62 } },
+                       node: { nodeCanvasObject: drawNode,
+                               nodePointerAreaPaint: (node, color, ctx) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(node.x, node.y, 14, 0, 7); ctx.fill(); } } });
   }
 
   const srcLabel = (r) => {
@@ -157,7 +192,7 @@
         <div class="why"><b>Met so far</b></div><ul>${met || "<li>nobody yet</li>"}</ul></div>`;
       if (v.event) toast(`🧠 <b>Remembered</b> — ${esc(v.event)}`);
     } else if (v.kind === "sent") {
-      toast(`✉️ <b>Sent to ${esc(v.to)}</b> (after your approval)<br>${esc(v.message).slice(0, 220)}`);
+      toast(`✉️ <b>Sent to ${esc(v.to)}</b> after your approval · demo outbox<br>${esc(v.message).slice(0, 220)}`);
     }
   }
 

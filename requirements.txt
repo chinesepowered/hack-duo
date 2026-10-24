@@ -1,0 +1,9 @@
+graphrag-sdk[litellm,openai]==1.4.0
+falkordb==1.8.0
+falkordblite==0.11.0
+mcp==2.3.0
+uvicorn==0.54.0
+starlette==1.10.0
+httpx==0.28.1
+python-dotenv
+openai==2.54.0

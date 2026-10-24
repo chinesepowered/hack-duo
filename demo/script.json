@@ -1,0 +1,52 @@
+[
+ {
+  "id": "s01_title",
+  "kind": "card",
+  "text": "Meet Capy. Capybaras are famously friends with everyone. So we built one that makes you friends at conferences."
+ },
+ {
+  "id": "s02_problem",
+  "kind": "card",
+  "text": "GitHub Universe has a hundred and sixty-two sessions and a hundred and eighty-three speakers. Maya runs platform engineering at a fintech, and her team's AI agents open pull requests faster than anyone can review them. So... who here has already solved that?"
+ },
+ {
+  "id": "s03_ask",
+  "kind": "app",
+  "text": "Maya asks Capy, an agent running on TrueForge with OpenAI's GPT-6 Luna. Capy remembers who she is, then searches its FalkorDB knowledge graph."
+ },
+ {
+  "id": "s04_path",
+  "kind": "app",
+  "text": "In a few seconds, the graph walks from Maya's problem, to similar problems, to the speakers who solved them, to where they'll be. Every hop is a real edge. And every claim has a receipt: the speaker's own words, and when Bright Data fetched them."
+ },
+ {
+  "id": "s05_data",
+  "kind": "card",
+  "text": "None of this data was easy to get. The session catalog is a JavaScript app, so Bright Data's Browser API rendered it. Bright Data's search and LinkedIn scrapers matched each speaker to their profile and recent posts. Then FalkorDB's GraphRAG SDK, running on OpenAI, turned it all into a graph of who solved what."
+ },
+ {
+  "id": "s06_lookup",
+  "kind": "app",
+  "text": "Maya bumps into someone at the badge party. Capy looks them up live through Bright Data, adds them to the graph, and finds what they have in common."
+ },
+ {
+  "id": "s07_memory",
+  "kind": "app",
+  "text": "Capy writes the meeting into the graph. The next morning, in a brand-new session, it still remembers, and knows who's waiting on a follow-up."
+ },
+ {
+  "id": "s08_approve",
+  "kind": "app",
+  "text": "Capy drafts a follow-up grounded in the receipt. Nothing reaches a real person until Maya approves it. TrueForge pauses for her sign-off. Approved... and sent."
+ },
+ {
+  "id": "s09_hood",
+  "kind": "card",
+  "text": "Under the hood: FalkorDB holds the knowledge graph, the vector search, and Capy's memory. Bright Data brings the fresh, hard-to-get data, with provenance on every fact. And TrueForge runs the agent: MCP tools, approvals, subagents, sandboxed code, and a morning follow-up schedule."
+ },
+ {
+  "id": "s10_outro",
+  "kind": "card",
+  "text": "Capy Pals. Stay chill. Capy's got the receipts."
+ }
+]

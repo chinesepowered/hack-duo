@@ -9,6 +9,7 @@ Hybrid retrieval, all inside FalkorDB:
 Every hit carries a receipt: the source chunk text, its Document's source_url, collector and fetched_at.
 """
 import json
+import re
 import time
 from datetime import datetime, timezone
 
@@ -107,13 +108,60 @@ def find_people(problem: str | None = None, limit: int = 5, exclude_met: bool = 
         scores = sorted((h["score"] for h in p["hits"]), reverse=True)
         p["score"] = scores[0] + 0.25 * sum(scores[1:4])
     met = {r[0] for r in G.ro("MATCH (:Me)-[:MET]->(p) RETURN p.id")} if exclude_met else set()
-    ranked = sorted((p for p in people.values() if p["id"] not in met), key=lambda p: -p["score"])[:limit]
-    out = [profile(p) for p in ranked]
+    ranked = sorted((p for p in people.values() if p["id"] not in met), key=lambda p: -p["score"])
+    out = _dedupe_cospeakers([profile(p) for p in ranked[: max(limit * 3, 12)]])
+    if problem and len(out) > 1:
+        out = rerank(problem, out)
+    out = out[:limit]
     view = {"kind": "matches", "query": problem or "Maya's problems", "generated_at": _now(),
             "took_ms": int((time.time() - t0) * 1000), "people": out,
             "graph": build_path(out[:3])}
     publish(view)
     return view
+
+
+def _dedupe_cospeakers(people: list[dict]) -> list[dict]:
+    """Co-presenters of the same talk share one pick (the first), credited as 'with …'."""
+    seen: dict[str, dict] = {}
+    out = []
+    for p in people:
+        talk = p["talks"][0]["id"] if p["talks"] else None
+        if talk and talk in seen and p["best_hit"].get("concept_id") == seen[talk]["best_hit"].get("concept_id"):
+            seen[talk].setdefault("with", []).append(p["name"])
+            continue
+        if talk:
+            seen[talk] = p
+        out.append(p)
+    for p in out:
+        if p.get("with"):
+            p["why"] += f" (co-presenting with {', '.join(p['with'])})"
+    return out
+
+
+def rerank(problem: str, people: list[dict]) -> list[dict]:
+    """LLM relevance check over the graph's candidates: does this evidence show they solved *this* problem?"""
+    global _oai
+    _oai = _oai or OpenAI(api_key=settings.openai_api_key)
+    items = [{"i": i, "name": p["name"], "evidence": p["why"] + " | " + " | ".join(r["quote"][:300] for r in p["receipts"][:2])}
+             for i, p in enumerate(people)]
+    try:
+        r = _oai.chat.completions.create(
+            model=settings.openai_model, reasoning_effort="none", temperature=0,
+            response_format={"type": "json_object"},
+            messages=[{"role": "system", "content": "Score how directly each candidate's evidence shows they have "
+                       "solved or deeply worked on the user's problem. 0 = unrelated, 10 = solved exactly this. "
+                       'Reply as JSON: {"scores": [{"i": 0, "score": 7}, ...]}.'},
+                      {"role": "user", "content": json.dumps({"problem": problem, "candidates": items})}])
+        scores = {s["i"]: float(s["score"]) for s in json.loads(r.choices[0].message.content)["scores"]}
+    except Exception as e:  # noqa: BLE001 - graph ranking still stands if the reranker hiccups
+        print(f"rerank skipped: {str(e)[:120]}")
+        return people
+    top = max(p["score"] for p in people) or 1
+    for i, p in enumerate(people):
+        p["relevance"] = scores.get(i, 0.0)
+        p["final"] = 0.65 * (p["relevance"] / 10) + 0.35 * (p["score"] / top)
+        p["yuzu"] = 3 if p["relevance"] >= 8 else 2 if p["relevance"] >= 5 else 1
+    return sorted(people, key=lambda p: -p["final"])
 
 
 def profile(p: dict) -> dict:
@@ -148,6 +196,9 @@ def _why(h: dict, name: str) -> str:
 
 def _snippet(text: str, around: str | None, width: int = 320) -> str:
     text = " ".join((text or "").split())
+    # drop the provenance header we prepend at ingest time; keep the speaker's own words
+    text = re.sub(r"^(.{0,400}?Abstract:\s*|LinkedIn post by .{0,200}?, posted [0-9-]*:\s*|"
+                  r"LinkedIn profile of .{0,200}?, fetched [0-9-]*:\s*)", "", text)
     if around:
         i = text.lower().find(around.lower().split()[0])
         if i > 80:

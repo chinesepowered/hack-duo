@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Capy Pals — cards</title>
+<style>
+  :root { --bg: #FBF6EE; --ink: #3B2A1E; --muted: #7A6656; --capy: #8B5E3C; --soft: #F3E6D6; --yuzu: #F5C518; --leaf: #6BAA4C; --teal: #2A9D8F; --coral: #E76F51; --line: #EADFCF; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: radial-gradient(1200px 700px at 30% 20%, #FFF8EA, var(--bg)); color: var(--ink);
+               font: 22px/1.4 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  .scene { display: none; height: 100%; padding: 70px 90px; }
+  .scene.on { display: flex; flex-direction: column; justify-content: center; }
+  .fade { opacity: 0; transform: translateY(14px); animation: in .7s ease forwards; }
+  @keyframes in { to { opacity: 1; transform: none; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } }
+  .capy { width: 260px; animation: bob 3.2s ease-in-out infinite; }
+  h1 { font-size: 92px; margin: 10px 0 6px; letter-spacing: -2px; }
+  h2 { font-size: 52px; margin: 0 0 18px; letter-spacing: -1px; }
+  .sub { font-size: 30px; color: var(--muted); max-width: 1100px; }
+  .row { display: flex; gap: 26px; align-items: center; flex-wrap: wrap; }
+  .pill { background: var(--soft); color: var(--capy); border-radius: 999px; padding: 10px 22px; font-weight: 700; font-size: 24px; }
+  .big { font-size: 76px; font-weight: 800; color: var(--capy); line-height: 1; }
+  .stat { background: #fff; border: 1px solid var(--line); border-radius: 26px; padding: 26px 34px; min-width: 300px; }
+  .stat small { display: block; color: var(--muted); font-size: 22px; margin-top: 6px; }
+  .persona { background: #fff; border: 2px solid var(--yuzu); border-radius: 26px; padding: 26px 32px; max-width: 1100px; }
+  .chip { display: inline-block; border-radius: 12px; padding: 8px 14px; margin: 6px 8px 0 0; background: #FDEDE8; color: #9A3D25; font-weight: 600; font-size: 22px; }
+  .chip.hot { background: var(--coral); color: #fff; }
+  .flow { display: grid; grid-template-columns: 1fr 70px 1fr 70px 1fr; align-items: center; gap: 10px; margin-top: 28px; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 20px 22px; min-height: 150px; }
+  .box b { display: block; font-size: 25px; margin-bottom: 6px; }
+  .box p { margin: 4px 0; font-size: 19px; color: #5B4636; }
+  .arrow { font-size: 44px; color: var(--yuzu); text-align: center; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px; }
+  .col { background: #fff; border: 1px solid var(--line); border-radius: 26px; padding: 26px 26px; }
+  .col h3 { margin: 0 0 12px; font-size: 32px; }
+  .col li { margin: 8px 0; font-size: 21px; }
+  .col.f h3 { color: #B4371F; } .col.b h3 { color: #2F5BD3; } .col.t h3 { color: #3E2B9A; }
+  .tag { font-size: 18px; color: var(--muted); }
+  .center { align-items: center; text-align: center; }
+</style>
+</head>
+<body>
+<!-- s01: title -->
+<div class="scene center" id="s01_title">
+  <img class="capy fade" src="/assets/capy.svg" alt="">
+  <h1 class="fade" style="animation-delay:.3s">Capy Pals</h1>
+  <div class="sub fade" style="animation-delay:.7s">Capy is friends with everyone. It finds the people at the conference who already solved your problem — with receipts.</div>
+  <div class="row fade" style="animation-delay:1.3s; justify-content:center; margin-top:34px">
+    <span class="pill">FalkorDB</span><span class="pill">Bright Data</span><span class="pill">TrueForge + OpenAI</span>
+  </div>
+</div>
+<!-- s02: problem -->
+<div class="scene" id="s02_problem">
+  <h2 class="fade">Two days. Too many people.</h2>
+  <div class="row">
+    <div class="stat fade" style="animation-delay:.3s"><div class="big" id="n_talks">162</div><small>sessions at GitHub Universe</small></div>
+    <div class="stat fade" style="animation-delay:.6s"><div class="big" id="n_speakers">183</div><small>speakers</small></div>
+    <div class="stat fade" style="animation-delay:.9s"><div class="big">1</div><small>Maya, who needs the right 3</small></div>
+  </div>
+  <div class="persona fade" style="animation-delay:5.5s; margin-top:30px">
+    <b style="font-size:28px">Maya Chen</b> <span class="tag">· Staff Platform Engineer @ Fernway (fintech) · fictional demo persona</span>
+    <div><span class="chip hot">Code review can't keep up with AI-generated PRs</span><span class="chip">Securing agents & MCP servers</span><span class="chip">Proving ROI of AI tools</span></div>
+  </div>
+  <div class="sub fade" style="animation-delay:12.5s; margin-top:26px; font-size:40px; color:var(--ink); font-weight:800">Who here already solved that? 🤔</div>
+</div>
+<!-- s05: data -->
+<div class="scene" id="s05_data">
+  <h2 class="fade">Hard-to-get data, with receipts</h2>
+  <div class="flow">
+    <div class="box fade" style="animation-delay:.4s"><b>🌐 Session catalog</b><p>JavaScript app, paginated</p><p><b style="display:inline;font-size:19px">Bright Data Browser API</b> rendered all <span id="n_talks2">162</span> sessions</p></div>
+    <div class="arrow fade" style="animation-delay:1s">➜</div>
+    <div class="box fade" style="animation-delay:5s"><b>🔎 Who is who</b><p><b style="display:inline;font-size:19px">Bright Data SERP</b> → LinkedIn profiles: <span id="n_ident">124</span>/<span id="n_spk2">183</span> speakers</p><p><b style="display:inline;font-size:19px">LinkedIn Scraper API</b> → <span id="n_posts">227</span> recent posts</p></div>
+    <div class="arrow fade" style="animation-delay:9s">➜</div>
+    <div class="box fade" style="animation-delay:12s"><b>🕸️ FalkorDB graph</b><p><b style="display:inline;font-size:19px">GraphRAG SDK + OpenAI</b> extraction</p><p><span id="n_ent">—</span> entities · <span id="n_facts">—</span> facts, each linked to its source & fetch time</p></div>
+  </div>
+</div>
+<!-- s09: under the hood -->
+<div class="scene" id="s09_hood">
+  <h2 class="fade">Under the hood</h2>
+  <div class="cols">
+    <div class="col f fade" style="animation-delay:.3s"><h3>FalkorDB</h3><ul>
+      <li>GraphRAG SDK knowledge graph</li><li>Vector search + multi-hop Cypher</li><li>Lit path = the proof</li><li>Memory across sessions</li><li>Shared state between agents</li></ul></div>
+    <div class="col b fade" style="animation-delay:6s"><h3>Bright Data</h3><ul>
+      <li>Browser API for JS catalogs</li><li>SERP identity resolution</li><li>LinkedIn Scraper API</li><li>Web Unlocker live lookups</li><li>Provenance + fallbacks</li></ul></div>
+    <div class="col t fade" style="animation-delay:10.5s"><h3>TrueForge + OpenAI</h3><ul>
+      <li>gpt-6-luna agent + MCP tools</li><li>Human approval before sending</li><li>Subagents & sandbox Code Mode</li><li>capy-intro skill</li><li>Morning follow-up schedule</li></ul></div>
+  </div>
+</div>
+<!-- s10: outro -->
+<div class="scene center" id="s10_outro">
+  <img class="capy fade" src="/assets/capy.svg" alt="">
+  <h1 class="fade" style="animation-delay:.2s">Capy Pals</h1>
+  <div class="sub fade" style="animation-delay:.6s">Stay chill — Capy's got the receipts. 🍋</div>
+  <div class="tag fade" style="animation-delay:1s; margin-top:20px">github.com/chinesepowered/hack-duo</div>
+</div>
+<script>
+  const scene = new URLSearchParams(location.search).get("scene") || "s01_title";
+  document.getElementById(scene)?.classList.add("on");
+  const q = new URLSearchParams(location.search);
+  for (const [k, v] of q) { const el = document.getElementById(k); if (el && k !== scene) el.textContent = v; }
+  fetch("/api/stats").then((r) => r.json()).then((s) => {
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v != null && !q.has(id)) el.textContent = Number(v).toLocaleString(); };
+    set("n_ent", (s.Problem || 0) + (s.Practice || 0) + (s.Tool || 0) + (s.Organization || 0) + (s.Speaker || 0));
+    set("n_facts", s.facts);
+  }).catch(() => {});
+</script>
+</body>
+</html>
